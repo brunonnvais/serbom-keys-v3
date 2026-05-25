@@ -1,0 +1,7 @@
+{
+  "name": "Claviculário Inteligente Pro",
+  "description": "Sistema avançado de gestão de chaves e acessos para condomínios logísticos, com controle de retiradas, devoluções, assinaturas digitais e relatórios inteligentes.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
