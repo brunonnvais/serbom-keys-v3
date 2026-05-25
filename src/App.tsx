@@ -176,8 +176,8 @@ const App: React.FC = () => {
 
   const [historySearch, setHistorySearch] = useState('');
   const [historyStatus, setHistoryStatus] = useState('ALL');
-  const APP_URL = 'https://SEU-LINK-DA-VERCEL.vercel.app';
-  
+  const APP_URL = 'https://serbom-keys-v3.vercel.app';
+
   const handleOpenEditUserModal = (user: any) => {
     setEditingSystemUser(user);
     setEditUserFullName(user.full_name || '');
