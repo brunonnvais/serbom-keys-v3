@@ -176,7 +176,8 @@ const App: React.FC = () => {
 
   const [historySearch, setHistorySearch] = useState('');
   const [historyStatus, setHistoryStatus] = useState('ALL');
-
+  const APP_URL = 'https://SEU-LINK-DA-VERCEL.vercel.app';
+  
   const handleOpenEditUserModal = (user: any) => {
     setEditingSystemUser(user);
     setEditUserFullName(user.full_name || '');
@@ -1910,7 +1911,7 @@ const App: React.FC = () => {
                     </div>
                     <div className="mb-4 flex justify-center">
                       <QRCodeCanvas
-                        value={`http://172.17.0.53:3000/key/${key.id}`}
+                        value={`${APP_URL}/key/${key.id}`}
                         size={96}
                       />
                     </div>
@@ -3126,7 +3127,7 @@ const App: React.FC = () => {
             </h1>
 
             <QRCodeCanvas
-              value={`${window.location.origin}/key/${printKey.id}`}
+              value={`${APP_URL}/key/${printKey.id}`}
               size={260}
             />
 
@@ -3155,7 +3156,7 @@ const App: React.FC = () => {
                   className="border border-slate-300 rounded-xl p-4 flex flex-col items-center justify-center"
                 >
                   <QRCodeCanvas
-                    value={`${window.location.origin}/key/${key.id}`}
+                    value={`${APP_URL}/key/${key.id}`}
                     size={120}
                   />
 
