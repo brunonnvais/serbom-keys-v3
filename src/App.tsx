@@ -369,6 +369,36 @@ const App: React.FC = () => {
   useEffect(() => {
     let mounted = true;
 
+    const realtimeChannel = supabase
+      .channel("db-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "keys" },
+        async (payload) => {
+          console.log("REALTIME KEYS:", payload);
+          await reloadAll();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "movements" },
+        async (payload) => {
+          console.log("REALTIME MOVEMENTS:", payload);
+          await reloadAll();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "cabinets" },
+        async (payload) => {
+          console.log("REALTIME CABINETS:", payload);
+          await reloadAll();
+        }
+      )
+      .subscribe((status) => {
+        console.log("REALTIME STATUS:", status);
+      });
+
     const init = async () => {
       try {
         const sessionResult = await supabase.auth.getSession();
@@ -387,7 +417,7 @@ const App: React.FC = () => {
 
         await reloadAll();
       } catch (err) {
-        console.error('Erro inicial:', err);
+        console.error("Erro inicial:", err);
       } finally {
         if (mounted) {
           setAuthLoading(false);
@@ -412,8 +442,10 @@ const App: React.FC = () => {
             setProfile(null);
             setSystemUsers([]);
           }
+
+          await reloadAll();
         } catch (err) {
-          console.error('Erro no onAuthStateChange:', err);
+          console.error("Erro no onAuthStateChange:", err);
         }
       }, 0);
     });
@@ -421,6 +453,7 @@ const App: React.FC = () => {
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      supabase.removeChannel(realtimeChannel);
     };
   }, []);
 
