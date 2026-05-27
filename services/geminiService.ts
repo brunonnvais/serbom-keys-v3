@@ -1,38 +1,24 @@
 import type { Key, Movement, User } from "../types";
 
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
 async function callGemini(prompt: string) {
-  if (!API_KEY || API_KEY === "PLACEHOLDER_API_KEY") {
-    return "IA não configurada. Adicione sua chave Gemini no arquivo .env";
-  }
-
   try {
-    const response = await fetch(`${GEMINI_URL}?key=${API_KEY}`, {
+    const response = await fetch("/api/gemini", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.3,
-          maxOutputTokens: 700,
-        },
-      }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prompt }),
     });
 
     const data = await response.json();
 
-    if (data.error) {
-      return `Erro Gemini: ${data.error.message}`;
+    if (!response.ok) {
+      return `Erro Gemini: ${data.error || "Erro desconhecido"}`;
     }
 
-    return (
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "A IA não conseguiu responder."
-    );
+    return data.text || "A IA não conseguiu responder.";
   } catch (error) {
     console.error("Erro Gemini:", error);
     return "Erro ao consultar Gemini.";
