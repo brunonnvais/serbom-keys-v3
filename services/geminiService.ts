@@ -11,30 +11,19 @@ async function callGemini(prompt: string) {
   }
 
   try {
-    const response = await fetch(
-      `${GEMINI_URL}?key=${API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+    const response = await fetch(`${GEMINI_URL}?key=${API_KEY}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 700,
         },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: prompt,
-                },
-              ],
-            },
-          ],
-        }),
-      }
-    );
+      }),
+    });
 
     const data = await response.json();
-
-    console.log("RESPOSTA GEMINI:", data);
 
     if (data.error) {
       return `Erro Gemini: ${data.error.message}`;
@@ -46,7 +35,6 @@ async function callGemini(prompt: string) {
     );
   } catch (error) {
     console.error("Erro Gemini:", error);
-
     return "Erro ao consultar Gemini.";
   }
 }
@@ -56,25 +44,53 @@ export async function getSmartKeyReport(
   movements: Movement[],
   users: User[]
 ) {
+  const availableKeys = keys.filter(
+    (key) => key.status === "DISPONIVEL"
+  );
+
+  const borrowedKeys = keys.filter(
+    (key) => key.status === "EM_USO"
+  );
+
+  const recentMovements = movements.slice(0, 10).map((movement) => ({
+    keyId: movement.keyId,
+    userId: movement.userId,
+    withdrawnAt: movement.withdrawnAt,
+    returnedAt: movement.returnedAt,
+  }));
+
+  const openKeys = borrowedKeys.map((key) => ({
+    code: key.code,
+    label: key.label,
+    sector: key.sector,
+    status: key.status,
+  }));
+
   const prompt = `
-Você é um assistente inteligente de um sistema de controle de chaves.
+Você é um assistente operacional do sistema SerbomKeys.
 
-Analise os dados abaixo:
+Analise o resumo abaixo e gere um relatório curto, prático e objetivo.
 
-CHAVES:
-${JSON.stringify(keys, null, 2)}
+DADOS:
+- Total de chaves: ${keys.length}
+- Chaves disponíveis: ${availableKeys.length}
+- Chaves em uso: ${borrowedKeys.length}
+- Total de movimentações: ${movements.length}
+- Total de usuários: ${users.length}
 
-MOVIMENTAÇÕES:
-${JSON.stringify(movements, null, 2)}
+CHAVES EM ABERTO:
+${JSON.stringify(openKeys, null, 2)}
 
-USUÁRIOS:
-${JSON.stringify(users, null, 2)}
+ÚLTIMAS MOVIMENTAÇÕES:
+${JSON.stringify(recentMovements, null, 2)}
 
-Gere:
-- resumo operacional
-- riscos
-- chaves em aberto
-- recomendações
+Gere em português:
+1. Resumo operacional
+2. Riscos principais
+3. Chaves em aberto
+4. Recomendações práticas
+
+Seja direto. Não escreva texto longo.
 `;
 
   const summary = await callGemini(prompt);
@@ -90,19 +106,33 @@ export async function askAssistant(
   keys?: Key[],
   movements?: Movement[]
 ) {
+  const summarizedKeys = (keys || []).slice(0, 30).map((key) => ({
+    code: key.code,
+    label: key.label,
+    sector: key.sector,
+    status: key.status,
+  }));
+
+  const summarizedMovements = (movements || []).slice(0, 20).map((movement) => ({
+    keyId: movement.keyId,
+    userId: movement.userId,
+    withdrawnAt: movement.withdrawnAt,
+    returnedAt: movement.returnedAt,
+  }));
+
   const prompt = `
-Você é um assistente operacional de controle de chaves.
+Você é um assistente operacional de controle de chaves do sistema SerbomKeys.
 
 Pergunta:
 ${question}
 
-CHAVES:
-${JSON.stringify(keys || [], null, 2)}
+Resumo das chaves:
+${JSON.stringify(summarizedKeys, null, 2)}
 
-MOVIMENTOS:
-${JSON.stringify(movements || [], null, 2)}
+Movimentações recentes:
+${JSON.stringify(summarizedMovements, null, 2)}
 
-Responda de forma objetiva em português.
+Responda em português, de forma objetiva e curta.
 `;
 
   return await callGemini(prompt);
