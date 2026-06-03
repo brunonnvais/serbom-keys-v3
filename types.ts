@@ -33,8 +33,12 @@ export type Key = {
 export type Movement = {
   id: string;
   keyId: string;
-  userId: string; // Quem retirou
-  authorizedBy: string; // Admin que autorizou se necessário
+  userId: string;
+  userName?: string;
+
+  authorizedBy: string;
+  authorizedByName?: string;
+
   withdrawnAt: string;
   returnedAt?: string;
   signatureBase64?: string;

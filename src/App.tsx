@@ -13,7 +13,10 @@ import { dbListMovements } from '../services/movementsService';
 import { supabase } from '../services/supabaseClient';
 import { signInWithEmail, signOut } from '../services/authService';
 import { createSystemUser } from '../services/userService';
-import { updateSystemUser } from '../services/userAdminService';
+import {
+  updateSystemUser,
+  resetSystemUserPassword,
+} from '../services/userAdminService';
 import { QRCodeCanvas } from 'qrcode.react';
 import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom';
 import { Html5QrcodeScanner } from 'html5-qrcode';
@@ -75,7 +78,6 @@ const KeyQrPage = ({ keys }: any) => {
     </div>
   );
 };
-
 const App: React.FC = () => {
   const [view, setView] = useState<
     | 'login'
@@ -88,7 +90,9 @@ const App: React.FC = () => {
     | 'cabinet_g1'
     | 'cabinet_g1_new_key'
     | 'scanner'
+    | 'change-password'
   >('login');
+
   const [hasOpenedQrKey, setHasOpenedQrKey] = useState(false);
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -178,6 +182,13 @@ const App: React.FC = () => {
   const [historyStatus, setHistoryStatus] = useState('ALL');
   const APP_URL = "https://serbom-keys-v3.vercel.app";
 
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [changePasswordError, setChangePasswordError] = useState('');
+  const mustChangePassword = profile?.must_change_password === true;
+
+
   const handleOpenEditUserModal = (user: any) => {
     setEditingSystemUser(user);
     setEditUserFullName(user.full_name || '');
@@ -223,6 +234,49 @@ const App: React.FC = () => {
       alert(error?.message || 'Erro ao atualizar usuário.');
     } finally {
       setIsUpdatingSystemUser(false);
+    }
+
+  };
+  const handleResetUserPassword = async () => {
+    if (!editingSystemUser?.id) {
+      alert('Usuário inválido.');
+      return;
+    }
+
+    const temporaryPassword = prompt(
+      'Informe a senha provisória.\n\nExemplo: Serbom@2026'
+    );
+
+    if (!temporaryPassword) {
+      return;
+    }
+
+    if (
+      temporaryPassword.length < 8 ||
+      !/[A-Z]/.test(temporaryPassword) ||
+      !/[a-z]/.test(temporaryPassword) ||
+      !/[0-9]/.test(temporaryPassword) ||
+      !/[^A-Za-z0-9]/.test(temporaryPassword)
+    ) {
+      alert(
+        'A senha deve conter no mínimo 8 caracteres, letra maiúscula, letra minúscula, número e caractere especial.'
+      );
+      return;
+    }
+
+    try {
+      await resetSystemUserPassword({
+        user_id: editingSystemUser.id,
+        temporary_password: temporaryPassword,
+        must_change_password: true,
+      });
+
+      alert(
+        'Senha redefinida com sucesso. O usuário será obrigado a trocar a senha no próximo login.'
+      );
+    } catch (error: any) {
+      console.error(error);
+      alert(error?.message || 'Erro ao redefinir senha.');
     }
   };
   const reloadAll = async () => {
@@ -1033,15 +1087,141 @@ const App: React.FC = () => {
 
     try {
       await signInWithEmail(loginUser, loginPass);
-      setView('dashboard');
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user?.id) {
+        throw new Error('Usuário autenticado não encontrado.');
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('must_change_password')
+        .eq('id', user.id)
+        .single();
+
+      if (profileError) {
+        throw new Error(profileError.message);
+      }
+
       setLoginUser('');
       setLoginPass('');
+
+      if (profile?.must_change_password) {
+        setView('change-password');
+        return;
+      }
+
+      setView('dashboard');
     } catch (error: any) {
       console.error('Erro no login:', error);
       setLoginError(error?.message || 'Erro ao fazer login');
     }
   };
+  const handleChangePassword = async () => {
+    console.log('CLICOU EM ALTERAR SENHA');
 
+    setChangePasswordError('');
+
+    if (newPassword.length < 8) {
+      setChangePasswordError('A senha deve possuir pelo menos 8 caracteres.');
+      return;
+    }
+
+    if (!/[A-Z]/.test(newPassword)) {
+      setChangePasswordError('A senha deve possuir pelo menos uma letra maiúscula.');
+      return;
+    }
+
+    if (!/[a-z]/.test(newPassword)) {
+      setChangePasswordError('A senha deve possuir pelo menos uma letra minúscula.');
+      return;
+    }
+
+    if (!/[0-9]/.test(newPassword)) {
+      setChangePasswordError('A senha deve possuir pelo menos um número.');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setChangePasswordError('As senhas não conferem.');
+      return;
+    }
+
+    try {
+      setIsChangingPassword(true);
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      console.log('USUARIO ATUAL:', user);
+      console.log('ERRO USUARIO:', userError);
+
+      if (userError) throw userError;
+
+      if (!user?.id) {
+        throw new Error('Usuário não encontrado.');
+      }
+
+      const { error: passwordError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      console.log('ERRO UPDATE SENHA:', passwordError);
+
+      if (passwordError) {
+        throw passwordError;
+      }
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          must_change_password: false,
+        })
+        .eq('id', user.id);
+
+      setProfile((prev: any) =>
+        prev
+          ? {
+            ...prev,
+            must_change_password: false,
+          }
+          : prev
+      );
+      setView('dashboard');
+      
+      console.log('ERRO UPDATE PROFILE:', profileError);
+
+      if (profileError) {
+        throw profileError;
+      }
+
+      setNewPassword('');
+      setConfirmNewPassword('');
+
+      setProfile((prev: any) =>
+        prev
+          ? {
+            ...prev,
+            must_change_password: false,
+          }
+          : prev
+      );
+
+      alert('Senha alterada com sucesso.');
+
+      setView('dashboard');
+    } catch (error: any) {
+      console.error('ERRO GERAL ALTERAR SENHA:', error);
+      setChangePasswordError(error.message || 'Erro ao alterar senha.');
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
   const handleLogout = async () => {
     try {
       await signOut();
@@ -1146,7 +1326,7 @@ const App: React.FC = () => {
         doc.text('Assinatura: N/A', 120, y + 37);
       }
 
-      y += 90;
+      y += 90; 0
 
       if (y > 250) {
         doc.addPage();
@@ -1158,6 +1338,7 @@ const App: React.FC = () => {
       `relatorio-auditoria-${new Date().toISOString().slice(0, 10)}.pdf`
     );
   };
+
   const formatUsageTime = (borrowedAt?: string | null) => {
     if (!borrowedAt) return '';
 
@@ -1280,7 +1461,10 @@ const App: React.FC = () => {
             active={view === 'dashboard'}
             label="Dashboard"
             icon="📊"
-            onClick={() => setView('dashboard')}
+            onClick={() => {
+              if (profile?.must_change_password) return;
+              setView('dashboard');
+            }}
           />
           <SidebarItem
             active={view === 'key_admin'}
@@ -1347,7 +1531,41 @@ const App: React.FC = () => {
         className="flex-1 overflow-auto p-4 pb-28 md:p-8"
         ref={menuWrapperRef}
       >
-        {view === 'dashboard' && (
+
+        {mustChangePassword && (
+          <div className="max-w-md mx-auto mt-20 bg-white p-8 rounded-2xl shadow">
+            <h1 className="text-2xl font-bold mb-6">
+              Alteração obrigatória de senha
+            </h1>
+
+            <input
+              type="password"
+              placeholder="Nova senha"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full border p-3 rounded mb-4"
+            />
+
+            <input
+              type="password"
+              placeholder="Confirmar nova senha"
+              value={confirmNewPassword}
+              onChange={(e) => setConfirmNewPassword(e.target.value)}
+              className="w-full border p-3 rounded mb-6"
+            />
+
+            <button
+              type="button"
+              onClick={handleChangePassword}
+              disabled={isChangingPassword}
+              className="w-full bg-blue-600 text-white rounded-xl py-3 font-bold disabled:bg-slate-300"
+            >
+              {isChangingPassword ? 'Alterando...' : 'Alterar senha'}
+            </button>
+          </div>
+        )}
+
+        {!mustChangePassword && view === 'dashboard' && (
           <div className="space-y-8 animate-in fade-in duration-500">
             <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
@@ -1570,7 +1788,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {view === 'users' && isAdmin && (
+        {!mustChangePassword && view === 'users' && isAdmin && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <header className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
@@ -1643,7 +1861,7 @@ const App: React.FC = () => {
                               {user.full_name || 'Sem nome'}
                             </div>
                             <div className="text-xs text-slate-500 break-all">
-                              {user.id}
+
                             </div>
                           </td>
 
@@ -1689,7 +1907,8 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {view === 'keys' && (
+        {!mustChangePassword && view === 'keys' && (
+
           <div className="space-y-6 animate-in slide-in-from-bottom duration-500">
             <header className="flex items-center justify-between">
 
@@ -2014,7 +2233,10 @@ const App: React.FC = () => {
                 />
 
                 <button
-                  onClick={() => setView('dashboard')}
+                  onClick={() => {
+                    if (profile?.must_change_password) return;
+                    setView('dashboard');
+                  }}
                   className="mt-6 w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl"
                 >
                   Fechar Scanner
@@ -2023,7 +2245,7 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
-        {view === 'assistant' && (
+        {!mustChangePassword && view === 'assistant' && (
           <div className="max-w-4xl mx-auto space-y-6 animate-in zoom-in duration-300">
             <header className="text-center space-y-2">
               <h1 className="text-3xl font-bold text-slate-900">
@@ -2088,7 +2310,8 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {view === 'key_admin' && (
+        {!mustChangePassword && view === 'key_admin' && (
+
           <div className="space-y-6 animate-in fade-in duration-300">
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
@@ -2465,7 +2688,8 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {view === 'history' && (
+        {!mustChangePassword && view === 'history' && (
+
           <div className="space-y-6 animate-in fade-in duration-500">
             <header className="flex items-center justify-between">
               <div>
@@ -2570,8 +2794,9 @@ const App: React.FC = () => {
                         const authorizedName =
                           m.authorized_by_name ||
                           m.authorizedByName ||
+                          m.userName ||
                           fallbackAuthUser?.name ||
-                          '—';
+                          '-';
 
                         return (
                           <tr key={m.id} className="hover:bg-slate-50/50 transition-colors">
@@ -2894,6 +3119,13 @@ const App: React.FC = () => {
 
               <div className="flex gap-3 pt-2">
                 <button
+                  onClick={handleResetUserPassword}
+                  className="flex-1 px-6 py-4 rounded-xl font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+                >
+                  Redefinir senha
+                </button>
+
+                <button
                   onClick={handleCloseEditUserModal}
                   className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
                 >
@@ -2903,7 +3135,7 @@ const App: React.FC = () => {
                 <button
                   onClick={handleUpdateSystemUser}
                   disabled={isUpdatingSystemUser}
-                  className="flex-1 px-6 py-4 rounded-xl font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 transition-all shadow-lg"
+                  className="flex-1 px-6 py-4 rounded-xl font-bold text-white bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300"
                 >
                   {isUpdatingSystemUser ? 'Salvando...' : 'Salvar alterações'}
                 </button>
@@ -3215,5 +3447,6 @@ const App: React.FC = () => {
     </div>
   );
 };
+
 
 export default App;
