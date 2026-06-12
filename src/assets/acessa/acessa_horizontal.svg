@@ -1,0 +1,14 @@
+<svg width="480" height="144" viewBox="0 0 480 144" xmlns="http://www.w3.org/2000/svg">
+  <rect width="480" height="144" fill="white"/>
+  <path d="M72,16 L116,34 L116,76 Q116,108 72,124 Q28,108 28,76 L28,34 Z" fill="#BA7517" opacity="0.12"/>
+  <path d="M72,22 L110,38 L110,76 Q110,104 72,118 Q34,104 34,76 L34,38 Z" fill="none" stroke="#BA7517" stroke-width="5"/>
+  <circle cx="72" cy="60" r="18" fill="none" stroke="#BA7517" stroke-width="6"/>
+  <circle cx="72" cy="60" r="7" fill="#BA7517"/>
+  <rect x="86" y="56" width="36" height="9" rx="5" fill="#BA7517"/>
+  <rect x="106" y="65" width="10" height="14" rx="4" fill="#EF9F27"/>
+  <rect x="91" y="65" width="10" height="10" rx="4" fill="#EF9F27"/>
+  <circle cx="72" cy="104" r="7" fill="#EF9F27" opacity="0.7"/>
+  <text x="156" y="80" font-family="Arial, sans-serif" font-size="72" font-weight="700" fill="#BA7517" letter-spacing="-1">ACESSA</text>
+  <text x="156" y="112" font-family="Arial, sans-serif" font-size="21" fill="#888780" letter-spacing="4">GESTÃO DE CHAVES</text>
+  <rect x="156" y="122" width="304" height="3" rx="1.5" fill="#EF9F27" opacity="0.5"/>
+</svg>

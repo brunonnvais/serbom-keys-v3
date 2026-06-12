@@ -22,7 +22,8 @@ import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import serbomLogo from "./assets/serbom-logo.png";
+import acessaLogo from "./assets/acessa/acessa_horizontal.png";
+import vsaLogo from "./assets/vsa-logo.png";
 const SidebarItem: React.FC<{
   active: boolean;
   label: string;
@@ -32,7 +33,7 @@ const SidebarItem: React.FC<{
   <button
     onClick={onClick}
     className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${active
-      ? 'bg-blue-600 text-white shadow-lg'
+      ? 'bg-[#BA7517] text-white shadow-lg'
       : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'
       }`}
   >
@@ -71,7 +72,7 @@ const KeyQrPage = ({ keys }: any) => {
           </span>
         </div>
 
-        <button className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl">
+        <button className="w-full bg-[#BA7517] text-white font-bold py-4 rounded-xl">
           Retirar Chave
         </button>
       </div>
@@ -1193,7 +1194,7 @@ const App: React.FC = () => {
           : prev
       );
       setView('dashboard');
-      
+
       console.log('ERRO UPDATE PROFILE:', profileError);
 
       if (profileError) {
@@ -1239,8 +1240,8 @@ const App: React.FC = () => {
     let y = 20;
 
     doc.setFontSize(20);
-    doc.setTextColor(37, 99, 235);
-    doc.text('Relatório de Auditoria - Serbom Keys', 14, y);
+    doc.setTextColor(186, 117, 23);
+    doc.text('Relatorio de Auditoria - ACESSA', 14, y);
 
     y += 10;
 
@@ -1273,7 +1274,7 @@ const App: React.FC = () => {
       doc.roundedRect(10, y, 190, 75, 4, 4);
 
       doc.setFontSize(14);
-      doc.setTextColor(37, 99, 235);
+      doc.setTextColor(186, 117, 23);
       doc.text(
         `CHAVE: ${key?.code || '—'} - ${key?.label || 'Sem identificação'}`,
         14,
@@ -1371,24 +1372,34 @@ const App: React.FC = () => {
   if (!session) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-xl p-8">
-          <div className="flex flex-col items-center justify-center mb-8">
-            <img
-              src={serbomLogo}
-              alt="Serbom"
-              className="w-40 object-contain mb-4"
-            />
+        <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-xl px-8 py-6">
 
-            <div className="text-3xl font-extrabold text-slate-900">
-              Serbom<span className="text-blue-600">Keys</span>
-            </div>
+          <div className="mb-10 border-b border-slate-200 pb-8">
+            <div className="grid grid-cols-[1fr_auto_1fr] items-center">
+              <div className="flex justify-center pr-6">
+                <img
+                  src={acessaLogo}
+                  alt="ACESSA"
+                  className="w-52 object-contain"
+                />
+              </div>
 
-            <div className="text-xs text-slate-500 font-semibold mt-1">
-              Sistema Inteligente de Gestão de Chaves
+              <div className="h-24 w-px bg-slate-300" />
+
+              <div className="flex justify-center pl-6">
+                <img
+                  src={vsaLogo}
+                  alt="VSA Anhanguera"
+                  className="w-32 object-contain"
+                />
+              </div>
             </div>
           </div>
 
-          <h1 className="text-2xl font-bold text-slate-900">Entrar</h1>
+          <h1 className="text-2xl font-bold text-slate-900">
+            Entrar
+          </h1>
+
           <p className="text-slate-500 text-sm mt-1">
             Use seu e-mail e senha para acessar o sistema.
           </p>
@@ -1398,6 +1409,7 @@ const App: React.FC = () => {
               <label className="text-xs font-bold text-slate-500 uppercase">
                 E-mail
               </label>
+
               <input
                 value={loginUser}
                 onChange={(e) => setLoginUser(e.target.value)}
@@ -1410,6 +1422,7 @@ const App: React.FC = () => {
               <label className="text-xs font-bold text-slate-500 uppercase">
                 Senha
               </label>
+
               <input
                 type="password"
                 value={loginPass}
@@ -1431,11 +1444,12 @@ const App: React.FC = () => {
             <button
               onClick={handleLogin}
               disabled={!loginUser.trim() || !loginPass}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-200 transition-all"
+              className="w-full bg-[#BA7517] hover:bg-[#9c6112] disabled:bg-slate-300 text-white font-bold py-3 rounded-xl shadow-lg transition-all"
             >
               Entrar
             </button>
           </div>
+
         </div>
       </div>
     );
@@ -1446,14 +1460,10 @@ const App: React.FC = () => {
       <aside className="w-64 bg-white border-r border-slate-200 p-6 flex flex-col space-y-8 hidden md:flex">
         <div className="flex flex-col items-center justify-center px-2 py-4">
           <img
-            src={serbomLogo}
-            alt="Serbom"
-            className="w-28 object-contain mb-3"
+            src={acessaLogo}
+            alt="ACESSA"
+            className="w-68 object-contain"
           />
-
-          <span className="text-2xl font-extrabold tracking-tight text-slate-800">
-            Serbom<span className="text-blue-600">Keys</span>
-          </span>
         </div>
 
         <nav className="flex-1 space-y-2">
@@ -1558,7 +1568,7 @@ const App: React.FC = () => {
               type="button"
               onClick={handleChangePassword}
               disabled={isChangingPassword}
-              className="w-full bg-blue-600 text-white rounded-xl py-3 font-bold disabled:bg-slate-300"
+              className="w-full bg-[#BA7517] text-white rounded-xl py-3 font-bold disabled:bg-slate-300"
             >
               {isChangingPassword ? 'Alterando...' : 'Alterar senha'}
             </button>
@@ -1576,7 +1586,7 @@ const App: React.FC = () => {
               </div>
               <button
                 onClick={handleGenerateReport}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-blue-200 transition-all flex items-center space-x-2"
+                className="bg-[#BA7517] hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold shadow-lg shadow-blue-200 transition-all flex items-center space-x-2"
               >
                 <span>✨</span>
                 <span>Gerar Insight IA</span>
@@ -2186,7 +2196,7 @@ const App: React.FC = () => {
                             setSignature(null);
                             setIsCheckOutModalOpen(true);
                           }}
-                          className="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                          className="w-full bg-[#BA7517] text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition-colors"
                         >
                           Retirar Chave
                         </button>
@@ -2267,7 +2277,7 @@ const App: React.FC = () => {
                 <button
                   onClick={handleAskAssistant}
                   disabled={loadingAssistant || !assistantQuery}
-                  className="bg-blue-600 disabled:bg-slate-400 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center space-x-2"
+                  className="bg-[#BA7517] disabled:bg-slate-400 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center space-x-2"
                 >
                   {loadingAssistant ? (
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -2347,7 +2357,7 @@ const App: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setShowCreateSector(true)}
-                    className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg"
+                    className="bg-[#BA7517] text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg"
                   >
                     + Novo Setor
                   </button>
@@ -2679,7 +2689,7 @@ const App: React.FC = () => {
                 <button
                   disabled={!g1KeyTag.trim()}
                   onClick={handleCreateG1Key}
-                  className="px-6 py-3 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 transition"
+                  className="px-6 py-3 rounded-xl font-bold text-white bg-[#BA7517] hover:bg-blue-700 disabled:bg-slate-300 transition"
                 >
                   Salvar
                 </button>
@@ -2907,7 +2917,7 @@ const App: React.FC = () => {
 
                 <button
                   onClick={handleCreateCabinet}
-                  className="px-5 py-3 rounded-xl bg-blue-600 text-white font-bold"
+                  className="px-5 py-3 rounded-xl bg-[#BA7517] text-white font-bold"
                 >
                   Salvar Armário
                 </button>
@@ -2954,7 +2964,7 @@ const App: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCreateSector}
-                className="px-5 py-3 rounded-xl bg-blue-600 text-white font-bold"
+                className="px-5 py-3 rounded-xl bg-[#BA7517] text-white font-bold"
               >
                 Salvar Setor
               </button>
@@ -3041,7 +3051,7 @@ const App: React.FC = () => {
                 <button
                   onClick={handleCheckOut}
                   disabled={!checkoutUser.trim() || !signature}
-                  className="flex-1 px-6 py-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 transition-all shadow-lg shadow-blue-200"
+                  className="flex-1 px-6 py-4 rounded-xl font-bold text-white bg-[#BA7517] hover:bg-blue-700 disabled:bg-slate-300 transition-all shadow-lg shadow-blue-200"
                 >
                   Confirmar Retirada
                 </button>
@@ -3344,7 +3354,7 @@ const App: React.FC = () => {
 
                 <button
                   onClick={handleSaveEditKey}
-                  className="flex-1 px-6 py-4 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+                  className="flex-1 px-6 py-4 rounded-xl font-bold text-white bg-[#BA7517] hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
                 >
                   Salvar alterações
                 </button>
@@ -3387,7 +3397,7 @@ const App: React.FC = () => {
       <div className="print-area">
         {printKey ? (
           <div className="flex flex-col items-center justify-center min-h-screen">
-            <h1 className="text-3xl font-bold mb-8">
+            <h1 className="text-3xl font-bold mb-6">
               QR Code da Chave
             </h1>
 

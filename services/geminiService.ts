@@ -53,7 +53,7 @@ export async function getSmartKeyReport(
   }));
 
   const prompt = `
-Você é um assistente operacional do sistema SerbomKeys.
+Você é um assistente operacional do sistema SYNTRA.
 
 Analise o resumo abaixo e gere um relatório curto, prático e objetivo.
 
@@ -107,7 +107,7 @@ export async function askAssistant(
   }));
 
   const prompt = `
-Você é um assistente operacional de controle de chaves do sistema SerbomKeys.
+Você é um assistente operacional de controle de chaves do sistema SYNTRA.
 
 Pergunta:
 ${question}
