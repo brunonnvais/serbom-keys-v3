@@ -1,4 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+} from 'recharts';
 import type { Key, Movement, User } from '../types';
 import { MOCK_USERS } from '../constants';
 import { getSmartKeyReport, askAssistant } from '../services/geminiService';
@@ -92,7 +105,7 @@ const App: React.FC = () => {
     | 'cabinet_g1_new_key'
     | 'scanner'
     | 'change-password'
-  >('login');
+  >('dashboard');
 
   const [hasOpenedQrKey, setHasOpenedQrKey] = useState(false);
   const [session, setSession] = useState<any>(null);
@@ -153,6 +166,23 @@ const App: React.FC = () => {
   const [newKeyLabel, setNewKeyLabel] = useState('');
   const [newKeyDescription, setNewKeyDescription] = useState('');
   const [newKeySector, setNewKeySector] = useState('');
+  const [newKeyCabinetId, setNewKeyCabinetId] = useState('');
+
+  // Notificações (toasts) bonitas no lugar dos alerts nativos
+  const [toasts, setToasts] = useState<
+    { id: number; type: 'success' | 'error' | 'info'; message: string }[]
+  >([]);
+
+  // Modal de confirmação bonito no lugar do window.confirm nativo
+  const [confirmState, setConfirmState] = useState<{
+    message: string;
+    confirmLabel: string;
+    danger: boolean;
+    resolve: (value: boolean) => void;
+  } | null>(null);
+
+  // Pré-visualização ampliada da assinatura (auditoria)
+  const [previewSignature, setPreviewSignature] = useState<string | null>(null);
   const [isCreatingKey, setIsCreatingKey] = useState(false);
 
   const [loginUser, setLoginUser] = useState('');
@@ -176,6 +206,22 @@ const App: React.FC = () => {
   const [g1KeySectorName, setG1KeySectorName] = useState<string>("");
 
   const [isCabinetMenuOpenId, setIsCabinetMenuOpenId] = useState<string | null>(null);
+
+  // Abas da tela de Cadastros
+  const [cadastroTab, setCadastroTab] = useState<'cabinets' | 'sectors' | 'keys'>('cabinets');
+
+  // Edição de armário
+  const [showEditCabinet, setShowEditCabinet] = useState(false);
+  const [editingCabinetId, setEditingCabinetId] = useState<string | null>(null);
+  const [editCabinetName, setEditCabinetName] = useState('');
+  const [editCabinetDescription, setEditCabinetDescription] = useState('');
+
+  // Setores: menu de ações + edição
+  const [isSectorMenuOpenId, setIsSectorMenuOpenId] = useState<string | null>(null);
+  const [showEditSector, setShowEditSector] = useState(false);
+  const [editingSectorId, setEditingSectorId] = useState<string | null>(null);
+  const [editSectorName, setEditSectorName] = useState('');
+  const [editSectorDescription, setEditSectorDescription] = useState('');
   const [printKey, setPrintKey] = useState<Key | null>(null);
   const [shouldPrint, setShouldPrint] = useState(false);
 
@@ -208,12 +254,12 @@ const App: React.FC = () => {
 
   const handleUpdateSystemUser = async () => {
     if (!editingSystemUser?.id) {
-      alert('Usuário inválido.');
+      notify('Usuário inválido.');
       return;
     }
 
     if (!editUserFullName.trim()) {
-      alert('Informe o nome completo.');
+      notify('Informe o nome completo.');
       return;
     }
 
@@ -229,10 +275,10 @@ const App: React.FC = () => {
 
       await loadSystemUsers();
       handleCloseEditUserModal();
-      alert('Usuário atualizado com sucesso.');
+      notify('Usuário atualizado com sucesso.');
     } catch (error: any) {
       console.error('Erro ao atualizar usuário:', error);
-      alert(error?.message || 'Erro ao atualizar usuário.');
+      notify(error?.message || 'Erro ao atualizar usuário.');
     } finally {
       setIsUpdatingSystemUser(false);
     }
@@ -240,7 +286,7 @@ const App: React.FC = () => {
   };
   const handleResetUserPassword = async () => {
     if (!editingSystemUser?.id) {
-      alert('Usuário inválido.');
+      notify('Usuário inválido.');
       return;
     }
 
@@ -259,7 +305,7 @@ const App: React.FC = () => {
       !/[0-9]/.test(temporaryPassword) ||
       !/[^A-Za-z0-9]/.test(temporaryPassword)
     ) {
-      alert(
+      notify(
         'A senha deve conter no mínimo 8 caracteres, letra maiúscula, letra minúscula, número e caractere especial.'
       );
       return;
@@ -272,14 +318,43 @@ const App: React.FC = () => {
         must_change_password: true,
       });
 
-      alert(
+      notify(
         'Senha redefinida com sucesso. O usuário será obrigado a trocar a senha no próximo login.'
       );
     } catch (error: any) {
       console.error(error);
-      alert(error?.message || 'Erro ao redefinir senha.');
+      notify(error?.message || 'Erro ao redefinir senha.');
     }
   };
+  const confirmDialog = (
+    message: string,
+    options?: { confirmLabel?: string; danger?: boolean }
+  ) =>
+    new Promise<boolean>((resolve) => {
+      setConfirmState({
+        message,
+        confirmLabel: options?.confirmLabel ?? 'Confirmar',
+        danger: options?.danger ?? true,
+        resolve,
+      });
+    });
+
+  const notify = (
+    message: string,
+    type?: 'success' | 'error' | 'info'
+  ) => {
+    const resolved: 'success' | 'error' | 'info' =
+      type ?? (/sucesso/i.test(message) ? 'success' : 'error');
+
+    const id = Date.now() + Math.random();
+
+    setToasts((prev) => [...prev, { id, type: resolved, message }]);
+
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
   const reloadAll = async () => {
     try {
       const [
@@ -350,7 +425,7 @@ const App: React.FC = () => {
   };
   const handleCreateSystemUser = async () => {
     if (!newUserFullName.trim()) {
-      alert('Informe o nome completo.');
+      notify('Informe o nome completo.');
       return;
     }
 
@@ -358,12 +433,12 @@ const App: React.FC = () => {
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
     if (!emailOk) {
-      alert('Informe um e-mail válido.');
+      notify('Informe um e-mail válido.');
       return;
     }
 
     if (!newUserPassword.trim() || newUserPassword.length < 6) {
-      alert('A senha temporária deve ter pelo menos 6 caracteres.');
+      notify('A senha temporária deve ter pelo menos 6 caracteres.');
       return;
     }
 
@@ -380,10 +455,10 @@ const App: React.FC = () => {
 
       await loadSystemUsers();
       handleCloseUserModal();
-      alert('Usuário criado com sucesso.');
+      notify('Usuário criado com sucesso.');
     } catch (error: any) {
       console.error('Erro ao criar usuário:', error);
-      alert(error?.message || 'Erro ao criar usuário.');
+      notify(error?.message || 'Erro ao criar usuário.');
     } finally {
       setIsCreatingSystemUser(false);
     }
@@ -470,7 +545,9 @@ const App: React.FC = () => {
           setSystemUsers([]);
         }
 
-        await reloadAll();
+        // Carrega os dados (chaves, movimentações, etc.) em segundo plano,
+        // sem travar a tela de carregamento.
+        reloadAll();
       } catch (err) {
         console.error("Erro inicial:", err);
       } finally {
@@ -545,13 +622,14 @@ const App: React.FC = () => {
       setSignature(null);
       setIsCheckOutModalOpen(true);
     } else if (normalizeStatus(foundKey.status) === 'EM_USO') {
-      const confirmReturn = window.confirm(
-        `A chave ${foundKey.code} está em uso. Deseja devolver agora?`
-      );
-
-      if (confirmReturn) {
-        handleReturn(foundKey.id);
-      }
+      confirmDialog(
+        `A chave ${foundKey.code} está em uso. Deseja devolver agora?`,
+        { confirmLabel: 'Devolver', danger: false }
+      ).then((confirmReturn) => {
+        if (confirmReturn) {
+          handleReturn(foundKey.id);
+        }
+      });
     }
   }, [keys, hasOpenedQrKey]);
 
@@ -586,7 +664,7 @@ const App: React.FC = () => {
           const foundKey = keys.find((k) => k.id === keyId);
 
           if (!foundKey) {
-            alert('Chave não encontrada no sistema.');
+            notify('Chave não encontrada no sistema.');
             setView('keys');
             return;
           }
@@ -599,17 +677,18 @@ const App: React.FC = () => {
             setSignature(null);
             setIsCheckOutModalOpen(true);
           } else {
-            const confirmReturn = window.confirm(
-              `A chave ${foundKey.code} está em uso. Deseja devolver agora?`
-            );
-
-            if (confirmReturn) {
-              handleReturn(foundKey.id);
-            }
+            confirmDialog(
+              `A chave ${foundKey.code} está em uso. Deseja devolver agora?`,
+              { confirmLabel: 'Devolver', danger: false }
+            ).then((confirmReturn) => {
+              if (confirmReturn) {
+                handleReturn(foundKey.id);
+              }
+            });
           }
         } catch (err) {
           console.error(err);
-          alert('QR Code inválido.');
+          notify('QR Code inválido.');
         }
       },
       (error) => {
@@ -678,6 +757,41 @@ const App: React.FC = () => {
     };
   }, [keys]);
 
+  // Dados para os gráficos do dashboard
+  const dashboardCharts = useMemo(() => {
+    const statusData = [
+      { name: 'Disponíveis', value: stats.available, color: '#10b981' },
+      { name: 'Em uso', value: Math.max(stats.inUse - stats.delayed, 0), color: '#3b82f6' },
+      { name: 'Atrasadas', value: stats.delayed, color: '#ef4444' },
+      { name: 'Manutenção', value: stats.alert, color: '#f59e0b' },
+    ].filter((d) => d.value > 0);
+
+    // Retiradas nos últimos 7 dias
+    const days: { label: string; key: string; retiradas: number }[] = [];
+    const today = new Date();
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const label = d.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+      });
+      days.push({ label, key, retiradas: 0 });
+    }
+
+    (movements || []).forEach((m: any) => {
+      const w = m.withdrawnAt || m.withdrawn_at;
+      if (!w) return;
+      const key = new Date(w).toISOString().slice(0, 10);
+      const day = days.find((d) => d.key === key);
+      if (day) day.retiradas += 1;
+    });
+
+    return { statusData, days };
+  }, [stats, movements]);
+
   const g1Keys = useMemo(() => {
     return keys.filter((k) => (k.sector || '').toUpperCase() === 'G1');
   }, [keys]);
@@ -718,7 +832,7 @@ const App: React.FC = () => {
 
     const exists = keys.some((k) => k.code.toUpperCase() === tag);
     if (exists) {
-      alert(`A chave "${tag}" já existe.`);
+      notify(`A chave "${tag}" já existe.`);
       return;
     }
 
@@ -733,7 +847,7 @@ const App: React.FC = () => {
       });
 
       if (!g1KeySectorId) {
-        alert("Selecione um setor antes de salvar.");
+        notify("Selecione um setor antes de salvar.");
         return;
       }
       await dbCreateKey({
@@ -759,7 +873,7 @@ const App: React.FC = () => {
 
     } catch (err: any) {
       console.error('Erro ao salvar chave no Supabase:', err);
-      alert(err?.message ?? JSON.stringify(err));
+      notify(err?.message ?? JSON.stringify(err));
     }
   }
 
@@ -786,7 +900,7 @@ const App: React.FC = () => {
     if (!selectedKey || !checkoutUser.trim() || !signature) return;
 
     if (!session?.user?.id) {
-      alert('Sessão inválida. Faça login novamente.');
+      notify('Sessão inválida. Faça login novamente.');
       return;
     }
 
@@ -807,7 +921,7 @@ const App: React.FC = () => {
       setSignature(null);
     } catch (err: any) {
       console.error('Erro ao retirar chave:', err);
-      alert(`Erro ao retirar chave: ${err?.message ?? 'erro desconhecido'}`);
+      notify(`Erro ao retirar chave: ${err?.message ?? 'erro desconhecido'}`);
     }
   };
 
@@ -817,12 +931,12 @@ const App: React.FC = () => {
       await reloadAll();
     } catch (err) {
       console.error('Erro ao devolver chave:', err);
-      alert('Erro ao devolver chave.');
+      notify('Erro ao devolver chave.');
     }
   };
   const handleCreateSector = async () => {
     if (!sectorName.trim()) {
-      alert('Digite o nome do setor.');
+      notify('Digite o nome do setor.');
       return;
     }
 
@@ -843,14 +957,14 @@ const App: React.FC = () => {
       await reloadAll();
     } catch (err: any) {
       console.error('Erro ao criar setor:', err);
-      alert(err?.message || 'Erro ao criar setor.');
+      notify(err?.message || 'Erro ao criar setor.');
     }
   };
   const handleCreateCabinet = async () => {
     try {
 
       if (!cabinetName.trim()) {
-        alert('Digite o nome do armário');
+        notify('Digite o nome do armário');
         return;
       }
 
@@ -873,17 +987,24 @@ const App: React.FC = () => {
 
     } catch (err: any) {
       console.error(err);
-      alert(err.message);
+      notify(err.message);
     }
   };
+  // Ao abrir o modal de Nova Chave, pré-seleciona o armário do contexto atual.
+  useEffect(() => {
+    if (isCreateModalOpen) {
+      setNewKeyCabinetId(selectedCabinetId ?? '');
+    }
+  }, [isCreateModalOpen]);
+
   const handleCreateKey = async () => {
     if (!newKeyCode.trim() || !newKeyLabel.trim()) {
-      alert('Preencha código e nome.');
+      notify('Preencha código e nome.');
       return;
     }
 
     if (!newKeySector) {
-      alert('Selecione um setor.');
+      notify('Selecione um setor.');
       return;
     }
 
@@ -900,7 +1021,7 @@ const App: React.FC = () => {
         description: newKeyDescription.trim(),
         sector: selectedSector?.name ?? '',
         sector_id: newKeySector,
-        cabinet_id: selectedCabinetId,
+        cabinet_id: newKeyCabinetId || null,
         status: 'DISPONIVEL',
       });
 
@@ -909,11 +1030,12 @@ const App: React.FC = () => {
       setNewKeyLabel('');
       setNewKeyDescription('');
       setNewKeySector('');
+      setNewKeyCabinetId('');
 
       await reloadAll();
     } catch (err) {
       console.error('Erro ao criar chave:', err);
-      alert('Erro ao criar chave.');
+      notify('Erro ao criar chave.');
     } finally {
       setIsCreatingKey(false);
     }
@@ -921,7 +1043,7 @@ const App: React.FC = () => {
 
   const handleArchiveKey = async (keyId: string, keyCode: string) => {
     try {
-      const confirmed = window.confirm(`Arquivar a chave "${keyCode}"?`);
+      const confirmed = await confirmDialog(`Arquivar a chave "${keyCode}"?`);
       if (!confirmed) return;
 
       const { data, error } = await supabase
@@ -937,16 +1059,16 @@ const App: React.FC = () => {
       }
 
       setKeys((prev) => prev.filter((k) => k.id !== keyId));
-      alert('Chave arquivada com sucesso.');
+      notify('Chave arquivada com sucesso.');
     } catch (err: any) {
       console.error('Erro ao arquivar chave:', err);
-      alert(err?.message ?? 'Erro ao arquivar chave.');
+      notify(err?.message ?? 'Erro ao arquivar chave.');
     }
   };
 
   const handleDeleteKey = async (keyId: string, keyCode: string) => {
     try {
-      const confirmed = window.confirm(
+      const confirmed = await confirmDialog(
         `Excluir permanentemente a chave "${keyCode}"?`
       );
       if (!confirmed) return;
@@ -964,17 +1086,17 @@ const App: React.FC = () => {
       }
 
       setKeys((prev) => prev.filter((k) => k.id !== keyId));
-      alert('Chave excluída com sucesso.');
+      notify('Chave excluída com sucesso.');
     } catch (err: any) {
       console.error('Erro ao excluir chave:', err);
-      alert(err?.message ?? 'Erro ao excluir chave.');
+      notify(err?.message ?? 'Erro ao excluir chave.');
     }
   };
   const handleDeleteCabinet = async (
     cabinetId: string,
     cabinetName: string
   ) => {
-    const confirmed = window.confirm(
+    const confirmed = await confirmDialog(
       `Excluir o armário "${cabinetName}"?`
     );
 
@@ -992,7 +1114,7 @@ const App: React.FC = () => {
 
       // impede exclusão
       if (keysInside && keysInside.length > 0) {
-        alert(
+        notify(
           'Não é possível excluir este armário porque existem chaves cadastradas nele.'
         );
         return;
@@ -1017,13 +1139,135 @@ const App: React.FC = () => {
 
       await reloadAll();
 
-      alert('Armário excluído com sucesso.');
+      notify('Armário excluído com sucesso.');
 
     } catch (err: any) {
       console.error('Erro ao excluir armário:', err);
-      alert(err?.message || 'Erro ao excluir armário.');
+      notify(err?.message || 'Erro ao excluir armário.');
     }
   };
+
+  // ----- Armários: editar -----
+  const openEditCabinet = (cabinet: any) => {
+    setIsCabinetMenuOpenId(null);
+    setEditingCabinetId(cabinet.id);
+    setEditCabinetName(cabinet.name ?? '');
+    setEditCabinetDescription(cabinet.description ?? '');
+    setShowEditCabinet(true);
+  };
+
+  const handleUpdateCabinet = async () => {
+    if (!editingCabinetId) return;
+
+    if (!editCabinetName.trim()) {
+      notify('Digite o nome do armário.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('cabinets')
+        .update({
+          name: editCabinetName.trim(),
+          description: editCabinetDescription.trim(),
+        })
+        .eq('id', editingCabinetId);
+
+      if (error) throw error;
+
+      setShowEditCabinet(false);
+      setEditingCabinetId(null);
+
+      await reloadAll();
+    } catch (err: any) {
+      console.error('Erro ao atualizar armário:', err);
+      notify(err?.message || 'Erro ao atualizar armário.');
+    }
+  };
+
+  // ----- Setores: editar e excluir -----
+  const openEditSector = (sector: any) => {
+    setIsSectorMenuOpenId(null);
+    setEditingSectorId(sector.id);
+    setEditSectorName(sector.name ?? '');
+    setEditSectorDescription(sector.description ?? '');
+    setShowEditSector(true);
+  };
+
+  const handleUpdateSector = async () => {
+    if (!editingSectorId) return;
+
+    if (!editSectorName.trim()) {
+      notify('Digite o nome do setor.');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('sectors')
+        .update({
+          name: editSectorName.trim(),
+          description: editSectorDescription.trim(),
+        })
+        .eq('id', editingSectorId);
+
+      if (error) throw error;
+
+      setShowEditSector(false);
+      setEditingSectorId(null);
+
+      await reloadAll();
+    } catch (err: any) {
+      console.error('Erro ao atualizar setor:', err);
+      notify(err?.message || 'Erro ao atualizar setor.');
+    }
+  };
+
+  const handleDeleteSector = async (sectorId: string, sectorName: string) => {
+    const confirmed = await confirmDialog(`Excluir o setor "${sectorName}"?`);
+    if (!confirmed) return;
+
+    try {
+      // valida se existem chaves vinculadas a esse setor
+      const { data: keysInside, error: keysError } = await supabase
+        .from('keys')
+        .select('id')
+        .eq('sector_id', sectorId)
+        .is('archived_at', null);
+
+      if (keysError) throw keysError;
+
+      // impede exclusão se houver chaves vinculadas
+      if (keysInside && keysInside.length > 0) {
+        notify(
+          'Não é possível excluir este setor porque existem chaves vinculadas a ele. Reatribua ou remova as chaves antes de excluir.'
+        );
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('sectors')
+        .update({ archived_at: new Date().toISOString() })
+        .eq('id', sectorId)
+        .select('id, name, archived_at');
+
+      if (error) throw error;
+
+      if (!data || data.length === 0) {
+        throw new Error('Nenhum setor foi excluído. Verifique se o ID existe ou se há bloqueio de permissão.');
+      }
+
+      setIsSectorMenuOpenId(null);
+
+      await reloadAll();
+
+      notify('Setor excluído com sucesso.');
+    } catch (err: any) {
+      console.error('Erro ao excluir setor:', err);
+      notify(err?.message || 'Erro ao excluir setor.');
+    }
+  };
+
   const openEditModal = (key: Key) => {
     setIsKeyMenuOpenId(null);
     setEditKey(key);
@@ -1039,7 +1283,7 @@ const App: React.FC = () => {
 
     const newCode = editTag.trim().toUpperCase();
     if (!newCode) {
-      alert('Informe a TAG da chave.');
+      notify('Informe a TAG da chave.');
       return;
     }
 
@@ -1048,7 +1292,7 @@ const App: React.FC = () => {
     );
 
     if (duplicate) {
-      alert(`Já existe outra chave com TAG "${newCode}".`);
+      notify(`Já existe outra chave com TAG "${newCode}".`);
       return;
     }
 
@@ -1079,7 +1323,7 @@ const App: React.FC = () => {
       setEditSectorId('');
     } catch (err) {
       console.error('Erro ao salvar alterações:', err);
-      alert('Erro ao salvar alterações.');
+      notify('Erro ao salvar alterações.');
     }
   };
 
@@ -1213,7 +1457,7 @@ const App: React.FC = () => {
           : prev
       );
 
-      alert('Senha alterada com sucesso.');
+      notify('Senha alterada com sucesso.');
 
       setView('dashboard');
     } catch (error: any) {
@@ -1680,6 +1924,57 @@ const App: React.FC = () => {
               ))}
             </div>
 
+            {/* Gráficos */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <h3 className="font-bold text-slate-800 text-lg mb-4">
+                  Distribuição das chaves
+                </h3>
+                {dashboardCharts.statusData.length === 0 ? (
+                  <p className="text-sm text-slate-500">Sem dados para exibir.</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={280}>
+                    <PieChart>
+                      <Pie
+                        data={dashboardCharts.statusData}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={3}
+                      >
+                        {dashboardCharts.statusData.map((entry, index) => (
+                          <Cell key={index} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                <h3 className="font-bold text-slate-800 text-lg mb-4">
+                  Retiradas nos últimos 7 dias
+                </h3>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={dashboardCharts.days}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                    <Tooltip />
+                    <Bar
+                      dataKey="retiradas"
+                      name="Retiradas"
+                      fill="#BA7517"
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
             {loadingReport && (
               <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm animate-pulse flex flex-col items-center justify-center space-y-4">
                 <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -1944,11 +2239,6 @@ const App: React.FC = () => {
 
                 <button
                   onClick={() => {
-                    if (!selectedCabinetId) {
-                      alert('Selecione um armário antes de criar uma chave.');
-                      return;
-                    }
-
                     setIsCreateModalOpen(true);
                   }}
                   className="bg-slate-900 text-white px-6 py-2 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg"
@@ -1995,6 +2285,20 @@ const App: React.FC = () => {
                       onChange={(e) => setNewKeyDescription(e.target.value)}
                       className="w-full rounded-xl border border-slate-300 px-3 py-2"
                     />
+
+                    <select
+                      value={newKeyCabinetId}
+                      onChange={(e) => setNewKeyCabinetId(e.target.value)}
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2 bg-white"
+                    >
+                      <option value="">Selecione um armário</option>
+
+                      {cabinets.map((cabinet: any) => (
+                        <option key={cabinet.id} value={cabinet.id}>
+                          {cabinet.name}
+                        </option>
+                      ))}
+                    </select>
 
                     <select
                       value={newKeySector}
@@ -2326,10 +2630,10 @@ const App: React.FC = () => {
             <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <h1 className="text-3xl font-bold text-slate-900">
-                  Gerenciar Chaves
+                  Cadastros
                 </h1>
                 <p className="text-slate-500">
-                  Configurações e administração das chaves.
+                  Administre armários, setores e chaves.
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -2344,7 +2648,7 @@ const App: React.FC = () => {
                   🔑 Visualizar Todas
                 </button>
 
-                {(isAdmin || isManager) && (
+                {(isAdmin || isManager) && cadastroTab === 'cabinets' && (
                   <button
                     type="button"
                     onClick={() => setShowCreateCabinet(true)}
@@ -2353,7 +2657,7 @@ const App: React.FC = () => {
                     + Novo Armário
                   </button>
                 )}
-                {(isAdmin || isManager) && (
+                {(isAdmin || isManager) && cadastroTab === 'sectors' && (
                   <button
                     type="button"
                     onClick={() => setShowCreateSector(true)}
@@ -2362,92 +2666,258 @@ const App: React.FC = () => {
                     + Novo Setor
                   </button>
                 )}
+                {(isAdmin || isManager) && cadastroTab === 'keys' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCabinetId(null);
+                      setView('keys');
+                      setIsCreateModalOpen(true);
+                    }}
+                    className="bg-[#BA7517] text-white px-6 py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg"
+                  >
+                    + Nova Chave
+                  </button>
+                )}
               </div>
             </header>
 
-            <div className="bg-white rounded-2xl border border-slate-100 p-6">
-              {cabinets.length === 0 ? (
-                <div className="text-sm text-slate-500">
-                  Nenhum armário cadastrado ainda.
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Abas: Armários / Setores / Chaves */}
+            <div className="flex gap-1 border-b border-slate-200">
+              {[
+                { id: 'cabinets', label: 'Armários', icon: '🗄️' },
+                { id: 'sectors', label: 'Setores', icon: '🏷️' },
+                { id: 'keys', label: 'Chaves', icon: '🔑' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() =>
+                    setCadastroTab(tab.id as 'cabinets' | 'sectors' | 'keys')
+                  }
+                  className={`px-5 py-3 -mb-px font-bold text-sm rounded-t-xl border-b-2 transition ${
+                    cadastroTab === tab.id
+                      ? 'border-[#BA7517] text-[#BA7517] bg-white'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <span className="mr-2">{tab.icon}</span>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-                  {cabinets.map((cabinet) => (
+            {/* Aba: Armários */}
+            {cadastroTab === 'cabinets' && (
+              <div className="bg-white rounded-2xl border border-slate-100 p-6">
+                {cabinets.length === 0 ? (
+                  <div className="text-sm text-slate-500">
+                    Nenhum armário cadastrado ainda.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {cabinets.map((cabinet) => (
+                      <button
+                        key={cabinet.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedCabinetId(cabinet.id);
+                          setView('keys');
+                        }}
+                        className="bg-white rounded-2xl border border-slate-200 p-6 text-left shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-bold text-slate-400 uppercase">
+                              Armário
+                            </p>
+
+                            <h2 className="text-2xl font-extrabold text-slate-900">
+                              {cabinet.name}
+                            </h2>
+
+                            <p className="text-slate-500 mt-1 text-sm">
+                              {cabinet.description || 'Armário de chaves'}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <div className="text-3xl">🗄️</div>
+
+                            {isAdmin && (
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsCabinetMenuOpenId((prev) =>
+                                      prev === cabinet.id ? null : cabinet.id
+                                    );
+                                  }}
+                                  className="w-9 h-9 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 flex items-center justify-center text-slate-700"
+                                >
+                                  ⋮
+                                </button>
+
+                                {isCabinetMenuOpenId === cabinet.id && (
+                                  <div
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="absolute right-0 top-full mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden z-50"
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openEditCabinet(cabinet);
+                                      }}
+                                      className="w-full text-left px-4 py-3 text-sm hover:bg-slate-50"
+                                    >
+                                      ✏️ Editar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteCabinet(cabinet.id, cabinet.name);
+                                      }}
+                                      className="w-full text-left px-4 py-3 text-sm text-rose-600 hover:bg-rose-50"
+                                    >
+                                      🗑️ Excluir
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-6">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700">
+                            Abrir
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Aba: Setores */}
+            {cadastroTab === 'sectors' && (
+              <div className="bg-white rounded-2xl border border-slate-100 p-6">
+                {sectors.length === 0 ? (
+                  <div className="text-sm text-slate-500">
+                    Nenhum setor cadastrado ainda.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {sectors.map((sector: any) => (
+                      <div
+                        key={sector.id}
+                        className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-slate-400 uppercase">
+                              Setor
+                            </p>
+                            <h2 className="text-2xl font-extrabold text-slate-900 break-words">
+                              {sector.name}
+                            </h2>
+                            <p className="text-slate-500 mt-1 text-sm break-words">
+                              {sector.description || 'Setor'}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <div className="text-3xl">🏷️</div>
+
+                            {isAdmin && (
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setIsSectorMenuOpenId((prev) =>
+                                      prev === sector.id ? null : sector.id
+                                    )
+                                  }
+                                  className="w-9 h-9 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 flex items-center justify-center text-slate-700"
+                                >
+                                  ⋮
+                                </button>
+
+                                {isSectorMenuOpenId === sector.id && (
+                                  <div className="absolute right-0 top-full mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden z-50">
+                                    <button
+                                      type="button"
+                                      onClick={() => openEditSector(sector)}
+                                      className="w-full text-left px-4 py-3 text-sm hover:bg-slate-50"
+                                    >
+                                      ✏️ Editar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleDeleteSector(sector.id, sector.name)
+                                      }
+                                      className="w-full text-left px-4 py-3 text-sm text-rose-600 hover:bg-rose-50"
+                                    >
+                                      🗑️ Excluir
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Aba: Chaves */}
+            {cadastroTab === 'keys' && (
+              <div className="bg-white rounded-2xl border border-slate-100 p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">Chaves</h2>
+                    <p className="text-sm text-slate-500">
+                      Total de chaves cadastradas: {keys.length}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3">
                     <button
-                      key={cabinet.id}
                       type="button"
                       onClick={() => {
-                        setSelectedCabinetId(cabinet.id);
+                        setSelectedCabinetId(null);
                         setView('keys');
                       }}
-                      className="bg-white rounded-2xl border border-slate-200 p-6 text-left shadow-sm hover:shadow-md transition-shadow"
+                      className="bg-emerald-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-emerald-700 shadow-lg"
                     >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase">
-                            Armário
-                          </p>
-
-                          <h2 className="text-2xl font-extrabold text-slate-900">
-                            {cabinet.name}
-                          </h2>
-
-                          <p className="text-slate-500 mt-1 text-sm">
-                            {cabinet.description || 'Armário de chaves'}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <div className="text-3xl">🗄️</div>
-
-                          {isAdmin && (
-                            <div className="relative">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setIsCabinetMenuOpenId((prev) =>
-                                    prev === cabinet.id ? null : cabinet.id
-                                  );
-                                }}
-                                className="w-9 h-9 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 flex items-center justify-center text-slate-700"
-                              >
-                                ⋮
-                              </button>
-
-                              {isCabinetMenuOpenId === cabinet.id && (
-                                <div
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="absolute right-0 top-full mt-2 w-44 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden z-50"
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteCabinet(cabinet.id, cabinet.name);
-                                    }}
-                                    className="w-full text-left px-4 py-3 text-sm text-rose-600 hover:bg-rose-50"
-                                  >
-                                    🗑️ Excluir
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="mt-6">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700">
-                          Abrir
-                        </span>
-                      </div>
+                      🔑 Visualizar Todas
                     </button>
-                  ))}
+
+                    {(isAdmin || isManager) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCabinetId(null);
+                          setView('keys');
+                          setIsCreateModalOpen(true);
+                        }}
+                        className="bg-[#BA7517] text-white px-5 py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg"
+                      >
+                        + Nova Chave
+                      </button>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2853,6 +3323,8 @@ const App: React.FC = () => {
                                 <img
                                   src={m.signatureBase64}
                                   alt="Assinatura"
+                                  onClick={() => setPreviewSignature(m.signatureBase64)}
+                                  title="Clique para ampliar"
                                   className="h-8 border rounded bg-slate-50 opacity-80 hover:opacity-100 transition-opacity cursor-zoom-in"
                                 />
                               ) : (
@@ -2972,6 +3444,212 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+      {previewSignature && (
+        <div
+          className="fixed inset-0 z-[95] bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setPreviewSignature(null)}
+        >
+          <div
+            className="bg-white rounded-3xl p-6 w-full max-w-lg shadow-2xl animate-in zoom-in duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-900">Assinatura</h2>
+              <button
+                type="button"
+                onClick={() => setPreviewSignature(null)}
+                className="text-slate-400 hover:text-slate-600 text-2xl leading-none"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-center">
+              <img
+                src={previewSignature}
+                alt="Assinatura ampliada"
+                className="max-h-[60vh] w-auto object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmState && (
+        <div className="fixed inset-0 z-[95] bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl animate-in zoom-in duration-200">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">{confirmState.danger ? '🗑️' : '❓'}</span>
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold text-slate-900">
+                  Confirmar ação
+                </h2>
+                <p className="text-slate-600 mt-1 text-sm break-words">
+                  {confirmState.message}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  confirmState.resolve(false);
+                  setConfirmState(null);
+                }}
+                className="px-5 py-3 rounded-xl bg-slate-100 font-bold hover:bg-slate-200"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  confirmState.resolve(true);
+                  setConfirmState(null);
+                }}
+                className={`px-5 py-3 rounded-xl text-white font-bold ${
+                  confirmState.danger
+                    ? 'bg-rose-600 hover:bg-rose-700'
+                    : 'bg-[#BA7517] hover:bg-blue-700'
+                }`}
+              >
+                {confirmState.confirmLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 w-full max-w-sm pointer-events-none">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className={`pointer-events-auto flex items-start gap-3 rounded-xl px-4 py-3 shadow-lg border animate-in slide-in-from-right fade-in duration-300 ${
+                t.type === 'success'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : t.type === 'error'
+                    ? 'bg-rose-50 border-rose-200 text-rose-800'
+                    : 'bg-blue-50 border-blue-200 text-blue-800'
+              }`}
+            >
+              <span className="text-lg leading-none">
+                {t.type === 'success' ? '✅' : t.type === 'error' ? '⚠️' : 'ℹ️'}
+              </span>
+              <p className="text-sm font-medium flex-1 break-words">{t.message}</p>
+              <button
+                type="button"
+                onClick={() =>
+                  setToasts((prev) => prev.filter((x) => x.id !== t.id))
+                }
+                className="text-slate-400 hover:text-slate-600 text-lg leading-none"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showEditCabinet && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-lg">
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">
+              Editar Armário
+            </h2>
+
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Nome do armário"
+                value={editCabinetName}
+                onChange={(e) => setEditCabinetName(e.target.value)}
+                className="w-full border border-slate-300 rounded-xl px-4 py-3"
+              />
+
+              <textarea
+                placeholder="Descrição"
+                value={editCabinetDescription}
+                onChange={(e) => setEditCabinetDescription(e.target.value)}
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 h-28"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditCabinet(false);
+                  setEditingCabinetId(null);
+                }}
+                className="px-5 py-3 rounded-xl bg-slate-100 font-bold"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleUpdateCabinet}
+                className="px-5 py-3 rounded-xl bg-[#BA7517] text-white font-bold"
+              >
+                Salvar Alterações
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditSector && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-lg">
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">
+              Editar Setor
+            </h2>
+
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Nome do setor"
+                value={editSectorName}
+                onChange={(e) => setEditSectorName(e.target.value)}
+                className="w-full border border-slate-300 rounded-xl px-4 py-3"
+              />
+
+              <textarea
+                placeholder="Descrição"
+                value={editSectorDescription}
+                onChange={(e) => setEditSectorDescription(e.target.value)}
+                className="w-full border border-slate-300 rounded-xl px-4 py-3 h-28"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditSector(false);
+                  setEditingSectorId(null);
+                }}
+                className="px-5 py-3 rounded-xl bg-slate-100 font-bold"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleUpdateSector}
+                className="px-5 py-3 rounded-xl bg-[#BA7517] text-white font-bold"
+              >
+                Salvar Alterações
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isCheckOutModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-y-auto animate-in zoom-in duration-200">
