@@ -1457,8 +1457,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <main className="flex-1 h-screen overflow-y-auto p-8"></main>
-      <aside className="w-64 bg-white border-r border-slate-200 p-6 flex flex-col space-y-8 hidden md:flex">
+      <aside className="w-64 shrink-0 bg-white border-r border-slate-200 p-6 flex flex-col space-y-8 hidden md:flex">
         <div className="flex flex-col items-center justify-center px-2 py-4">
           <img
             src={acessaLogo}
