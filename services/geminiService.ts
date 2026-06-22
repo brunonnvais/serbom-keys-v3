@@ -2,9 +2,9 @@ import type { Key, Movement, User } from "../types";
 
 
 
-async function callGemini(prompt: string) {
+async function callAI(prompt: string) {
   try {
-    const response = await fetch("/api/gemini", {
+    const response = await fetch("/api/ask-ai", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -15,13 +15,16 @@ async function callGemini(prompt: string) {
     const data = await response.json();
 
     if (!response.ok) {
-      return `Erro Gemini: ${data.error || "Erro desconhecido"}`;
+      return (
+        data?.text ||
+        "Assistente IA indisponível no momento. Tente novamente mais tarde."
+      );
     }
 
     return data.text || "A IA não conseguiu responder.";
   } catch (error) {
-    console.error("Erro Gemini:", error);
-    return "Erro ao consultar Gemini.";
+    console.error("Erro IA:", error);
+    return "Assistente IA indisponível no momento. Tente novamente mais tarde.";
   }
 }
 
@@ -79,7 +82,7 @@ Gere em português:
 Seja direto. Não escreva texto longo.
 `;
 
-  const summary = await callGemini(prompt);
+  const summary = await callAI(prompt);
 
   return {
     summary,
@@ -121,5 +124,5 @@ ${JSON.stringify(summarizedMovements, null, 2)}
 Responda em português, de forma objetiva e curta.
 `;
 
-  return await callGemini(prompt);
+  return await callAI(prompt);
 }

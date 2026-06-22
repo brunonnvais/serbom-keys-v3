@@ -1456,8 +1456,8 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <aside className="w-64 shrink-0 bg-white border-r border-slate-200 p-6 flex flex-col space-y-8 hidden md:flex">
+    <div className="flex h-screen overflow-hidden bg-slate-50">
+      <aside className="w-64 shrink-0 bg-white border-r border-slate-200 p-6 flex flex-col space-y-8 hidden md:flex h-screen sticky top-0">
         <div className="flex flex-col items-center justify-center px-2 py-4">
           <img
             src={acessaLogo}
@@ -1466,7 +1466,7 @@ const App: React.FC = () => {
           />
         </div>
 
-        <nav className="flex-1 space-y-2">
+        <nav className="flex-1 min-h-0 overflow-y-auto space-y-2">
           <SidebarItem
             active={view === 'dashboard'}
             label="Dashboard"
@@ -1513,7 +1513,7 @@ const App: React.FC = () => {
           />
         </nav>
 
-        <div className="border-t pt-6 space-y-4">
+        <div className="border-t pt-6 space-y-4 shrink-0">
           <div className="flex items-center space-x-3 px-2">
             <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center">
               👤
@@ -1684,7 +1684,7 @@ const App: React.FC = () => {
               <div className="bg-white p-8 rounded-2xl border border-slate-100 shadow-sm animate-pulse flex flex-col items-center justify-center space-y-4">
                 <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
                 <p className="text-blue-600 font-medium">
-                  Gemini está analisando seus dados de segurança...
+                  A IA está analisando seus dados de segurança...
                 </p>
               </div>
             )}
@@ -2283,7 +2283,7 @@ const App: React.FC = () => {
                     <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   ) : (
                     <>
-                      <span>Perguntar ao Gemini</span>
+                      <span>Perguntar à IA</span>
                       <span>✨</span>
                     </>
                   )}

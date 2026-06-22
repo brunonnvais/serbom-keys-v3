@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@google/genai": "^1.38.0",
     "@supabase/supabase-js": "^2.94.0",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",
