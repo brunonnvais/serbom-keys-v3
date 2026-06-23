@@ -1702,12 +1702,26 @@ const App: React.FC = () => {
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">
       <aside className="w-64 shrink-0 bg-white border-r border-slate-200 p-6 flex flex-col space-y-8 hidden md:flex h-screen sticky top-0">
-        <div className="flex flex-col items-center justify-center px-2 py-4">
-          <img
-            src={acessaLogo}
-            alt="ACESSA"
-            className="w-68 object-contain"
-          />
+        <div className="px-1 py-4">
+          <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <div className="flex justify-center">
+              <img
+                src={acessaLogo}
+                alt="ACESSA"
+                className="w-full max-w-[110px] object-contain"
+              />
+            </div>
+
+            <div className="h-12 w-px bg-slate-200" />
+
+            <div className="flex justify-center">
+              <img
+                src={vsaLogo}
+                alt="VSA Anhanguera"
+                className="w-full max-w-[70px] object-contain"
+              />
+            </div>
+          </div>
         </div>
 
         <nav className="flex-1 min-h-0 overflow-y-auto space-y-2">
