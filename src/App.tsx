@@ -4634,13 +4634,13 @@ const App: React.FC = () => {
             <div
               style={{
                 width: '19mm',
-                height: '39mm',
+                height: '40mm',
                 border: '1px dashed #94a3b8',
                 borderRadius: '1.5mm',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '1mm',
+                gap: '1.2mm',
                 padding: '1.5mm',
                 boxSizing: 'border-box',
                 pageBreakInside: 'avoid',
@@ -4649,17 +4649,25 @@ const App: React.FC = () => {
             >
               <QRCodeCanvas
                 value={`${APP_URL}/key/${printKey.id}`}
-                size={220}
-                style={{ width: '16mm', height: '16mm' }}
+                size={240}
+                style={{ width: '17mm', height: '17mm' }}
               />
-              <div style={{ fontWeight: 800, fontSize: '8pt', lineHeight: 1.05 }}>
+              <div
+                style={{
+                  fontWeight: 800,
+                  fontSize: '10pt',
+                  lineHeight: 1,
+                  color: '#0f172a',
+                }}
+              >
                 {printKey.code}
               </div>
               <div
                 style={{
-                  fontSize: '5pt',
-                  color: '#475569',
-                  lineHeight: 1.1,
+                  fontSize: '6.5pt',
+                  fontWeight: 600,
+                  color: '#1e293b',
+                  lineHeight: 1.15,
                   display: '-webkit-box',
                   WebkitLineClamp: 3,
                   WebkitBoxOrient: 'vertical',
@@ -4725,13 +4733,13 @@ const App: React.FC = () => {
                   key={key.id}
                   style={{
                     width: '19mm',
-                    height: '39mm',
+                    height: '40mm',
                     border: '1px dashed #94a3b8',
                     borderRadius: '1.5mm',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '1mm',
+                    gap: '1.2mm',
                     padding: '1.5mm',
                     boxSizing: 'border-box',
                     pageBreakInside: 'avoid',
@@ -4740,23 +4748,25 @@ const App: React.FC = () => {
                 >
                   <QRCodeCanvas
                     value={`${APP_URL}/key/${key.id}`}
-                    size={220}
-                    style={{ width: '16mm', height: '16mm' }}
+                    size={240}
+                    style={{ width: '17mm', height: '17mm' }}
                   />
                   <div
                     style={{
                       fontWeight: 800,
-                      fontSize: '8pt',
-                      lineHeight: 1.05,
+                      fontSize: '10pt',
+                      lineHeight: 1,
+                      color: '#0f172a',
                     }}
                   >
                     {key.code}
                   </div>
                   <div
                     style={{
-                      fontSize: '5pt',
-                      color: '#475569',
-                      lineHeight: 1.1,
+                      fontSize: '6.5pt',
+                      fontWeight: 600,
+                      color: '#1e293b',
+                      lineHeight: 1.15,
                       display: '-webkit-box',
                       WebkitLineClamp: 3,
                       WebkitBoxOrient: 'vertical',
