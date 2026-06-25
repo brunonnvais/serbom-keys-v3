@@ -45,3 +45,21 @@ export async function saveInventory(params: {
 
   return inv.id as string;
 }
+
+export async function listInventories() {
+  const { data, error } = await supabase
+    .from('inventories')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getInventoryItems(inventoryId: string) {
+  const { data, error } = await supabase
+    .from('inventory_items')
+    .select('*')
+    .eq('inventory_id', inventoryId);
+  if (error) throw error;
+  return data ?? [];
+}

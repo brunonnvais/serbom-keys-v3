@@ -23,6 +23,7 @@ import {
   rpcReturnKey,
 } from '../services/keysService';
 import { dbListMovements } from '../services/movementsService';
+import { listInventories, getInventoryItems } from '../services/inventoryService';
 import { supabase } from '../services/supabaseClient';
 import { signInWithEmail, signOut } from '../services/authService';
 import { createSystemUser } from '../services/userService';
@@ -150,6 +151,7 @@ const App: React.FC = () => {
     | 'cabinet_g1_new_key'
     | 'scanner'
     | 'change-password'
+    | 'inventories'
   >('dashboard');
 
   const [hasOpenedQrKey, setHasOpenedQrKey] = useState(false);
@@ -228,6 +230,82 @@ const App: React.FC = () => {
 
   // Pré-visualização ampliada da assinatura (auditoria)
   const [previewSignature, setPreviewSignature] = useState<string | null>(null);
+
+  // Inventários (conferências)
+  const [inventories, setInventories] = useState<any[]>([]);
+  const [loadingInventories, setLoadingInventories] = useState(false);
+  const [selectedInventory, setSelectedInventory] = useState<any | null>(null);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [loadingInventoryItems, setLoadingInventoryItems] = useState(false);
+
+  const loadInventories = async () => {
+    try {
+      setLoadingInventories(true);
+      const data = await listInventories();
+      setInventories(data ?? []);
+    } catch (e: any) {
+      console.error('Erro ao carregar inventários:', e);
+      notify(e?.message || 'Erro ao carregar inventários.');
+    } finally {
+      setLoadingInventories(false);
+    }
+  };
+
+  const openInventory = async (inv: any) => {
+    setSelectedInventory(inv);
+    setInventoryItems([]);
+    try {
+      setLoadingInventoryItems(true);
+      const items = await getInventoryItems(inv.id);
+      setInventoryItems(items ?? []);
+    } catch (e: any) {
+      console.error('Erro ao carregar itens do inventário:', e);
+      notify(e?.message || 'Erro ao carregar itens.');
+    } finally {
+      setLoadingInventoryItems(false);
+    }
+  };
+
+  const handleExportInventoryPdf = (inv: any, items: any[]) => {
+    const doc = new jsPDF();
+    const date = new Date(inv.created_at);
+
+    doc.setFontSize(16);
+    doc.text('Conferência de Inventário - ACESSA', 14, 18);
+
+    doc.setFontSize(10);
+    doc.text(`Data: ${date.toLocaleString('pt-BR')}`, 14, 27);
+    doc.text(`Conferente: ${inv.performed_by_name || '—'}`, 14, 33);
+    doc.text(
+      `Presentes: ${inv.total_present}   |   Sumidas: ${inv.total_missing}   |   Divergentes: ${inv.total_unexpected}   |   Esperadas: ${inv.total_expected}`,
+      14,
+      39
+    );
+
+    const label = (r: string) =>
+      r === 'present'
+        ? 'Presente'
+        : r === 'missing'
+          ? 'SUMIDA'
+          : 'DIVERGENTE';
+
+    const order = (r: string) =>
+      r === 'missing' ? 0 : r === 'unexpected' ? 1 : 2;
+
+    const rows = [...items]
+      .sort((a, b) => order(a.result) - order(b.result))
+      .map((it) => [it.key_code || '', it.key_label || '', label(it.result)]);
+
+    autoTable(doc, {
+      startY: 45,
+      head: [['Código', 'Chave', 'Resultado']],
+      body: rows,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [186, 117, 23] },
+    });
+
+    doc.save(`inventario-${date.toISOString().slice(0, 10)}.pdf`);
+  };
   const [isCreatingKey, setIsCreatingKey] = useState(false);
 
   const [loginUser, setLoginUser] = useState('');
@@ -1862,6 +1940,17 @@ const App: React.FC = () => {
             icon="📋"
             onClick={() => setView('history')}
           />
+          {(isAdmin || isManager) && (
+            <SidebarItem
+              active={view === 'inventories'}
+              label="Inventários"
+              icon="📦"
+              onClick={() => {
+                setView('inventories');
+                loadInventories();
+              }}
+            />
+          )}
           {isAdmin && (
             <SidebarItem
               active={view === 'users'}
@@ -3502,6 +3591,114 @@ const App: React.FC = () => {
             </div>
           </div>
         )}
+
+        {!mustChangePassword && view === 'inventories' && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <header>
+              <h1 className="text-3xl font-bold text-slate-900">Inventários</h1>
+              <p className="text-slate-500">
+                Histórico das conferências físicas das chaves.
+              </p>
+            </header>
+
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+              {loadingInventories ? (
+                <div className="p-8 text-center text-slate-500">
+                  Carregando inventários...
+                </div>
+              ) : inventories.length === 0 ? (
+                <div className="p-8 text-center text-slate-500">
+                  Nenhuma conferência registrada ainda. Faça a conferência pelo
+                  app do operador (celular).
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-slate-50 border-b border-slate-100">
+                      <tr>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">
+                          Data
+                        </th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">
+                          Conferente
+                        </th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">
+                          Presentes
+                        </th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">
+                          Sumidas
+                        </th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase">
+                          Divergentes
+                        </th>
+                        <th className="px-6 py-4" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {inventories.map((inv) => (
+                        <tr
+                          key={inv.id}
+                          className="hover:bg-slate-50/50 transition-colors"
+                        >
+                          <td className="px-6 py-4 text-sm">
+                            <div className="font-bold text-slate-900">
+                              {new Date(inv.created_at).toLocaleDateString(
+                                'pt-BR'
+                              )}
+                            </div>
+                            <div className="text-xs text-slate-400">
+                              {new Date(inv.created_at).toLocaleTimeString(
+                                'pt-BR'
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-700">
+                            {inv.performed_by_name || '—'}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="px-2 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+                              {inv.total_present}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                inv.total_missing > 0
+                                  ? 'bg-rose-100 text-rose-700'
+                                  : 'bg-slate-100 text-slate-500'
+                              }`}
+                            >
+                              {inv.total_missing}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                inv.total_unexpected > 0
+                                  ? 'bg-orange-100 text-orange-700'
+                                  : 'bg-slate-100 text-slate-500'
+                              }`}
+                            >
+                              {inv.total_unexpected}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              onClick={() => openInventory(inv)}
+                              className="text-blue-600 font-bold text-sm hover:underline"
+                            >
+                              Ver detalhes
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </main>
       {
         showCreateCabinet && (
@@ -3690,6 +3887,111 @@ const App: React.FC = () => {
             >
               Fechar
             </button>
+          </div>
+        </div>
+      )}
+
+      {selectedInventory && (
+        <div
+          className="fixed inset-0 z-[95] bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setSelectedInventory(null)}
+        >
+          <div
+            className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl animate-in zoom-in duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-5 border-b border-slate-100 flex items-start justify-between sticky top-0 bg-white">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">
+                  Conferência de{' '}
+                  {new Date(selectedInventory.created_at).toLocaleDateString(
+                    'pt-BR'
+                  )}
+                </h2>
+                <p className="text-sm text-slate-500">
+                  Conferente: {selectedInventory.performed_by_name || '—'}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedInventory(null)}
+                className="text-slate-400 hover:text-slate-600 text-2xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="bg-emerald-50 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-extrabold text-emerald-700">
+                    {selectedInventory.total_present}
+                  </p>
+                  <p className="text-xs text-emerald-700">Presentes</p>
+                </div>
+                <div className="bg-rose-50 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-extrabold text-rose-700">
+                    {selectedInventory.total_missing}
+                  </p>
+                  <p className="text-xs text-rose-700">Sumidas</p>
+                </div>
+                <div className="bg-orange-50 rounded-xl p-3 text-center">
+                  <p className="text-2xl font-extrabold text-orange-700">
+                    {selectedInventory.total_unexpected}
+                  </p>
+                  <p className="text-xs text-orange-700">Divergentes</p>
+                </div>
+              </div>
+
+              {loadingInventoryItems ? (
+                <p className="text-center text-slate-500 py-4">
+                  Carregando itens...
+                </p>
+              ) : (
+                <>
+                  {(['missing', 'unexpected', 'present'] as const).map(
+                    (res) => {
+                      const list = inventoryItems.filter(
+                        (it) => it.result === res
+                      );
+                      if (list.length === 0) return null;
+                      const title =
+                        res === 'missing'
+                          ? '🔴 Sumidas (não encontradas)'
+                          : res === 'unexpected'
+                            ? '🟠 Divergentes (estavam EM USO no sistema)'
+                            : '🟢 Presentes';
+                      return (
+                        <div key={res}>
+                          <p className="font-bold text-slate-800 mb-2">
+                            {title}
+                          </p>
+                          <div className="space-y-1">
+                            {list.map((it) => (
+                              <div
+                                key={it.id}
+                                className="text-sm bg-slate-50 rounded-lg px-3 py-2"
+                              >
+                                <b>{it.key_code}</b> — {it.key_label}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+                </>
+              )}
+
+              <button
+                onClick={() =>
+                  handleExportInventoryPdf(selectedInventory, inventoryItems)
+                }
+                disabled={loadingInventoryItems}
+                className="w-full bg-[#BA7517] text-white font-bold py-3 rounded-xl hover:bg-blue-700 disabled:bg-slate-300"
+              >
+                📥 Exportar PDF
+              </button>
+            </div>
           </div>
         </div>
       )}
