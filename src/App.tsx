@@ -4670,16 +4670,24 @@ const App: React.FC = () => {
                   minHeight: 0,
                   width: '100%',
                   overflow: 'hidden',
-                  fontSize: '6pt',
-                  fontWeight: 600,
-                  color: '#1e293b',
-                  lineHeight: 1.12,
-                  display: '-webkit-box',
-                  WebkitLineClamp: 4,
-                  WebkitBoxOrient: 'vertical',
+                  display: 'flex',
+                  justifyContent: 'center',
                 }}
               >
-                {printKey.label}
+                <div
+                  style={{
+                    writingMode: 'vertical-rl',
+                    fontSize: '7pt',
+                    fontWeight: 600,
+                    color: '#1e293b',
+                    lineHeight: 1.25,
+                    maxHeight: '100%',
+                    textAlign: 'center',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  {printKey.label}
+                </div>
               </div>
             </div>
 
@@ -4774,16 +4782,24 @@ const App: React.FC = () => {
                       minHeight: 0,
                       width: '100%',
                       overflow: 'hidden',
-                      fontSize: '6pt',
-                      fontWeight: 600,
-                      color: '#1e293b',
-                      lineHeight: 1.12,
-                      display: '-webkit-box',
-                      WebkitLineClamp: 4,
-                      WebkitBoxOrient: 'vertical',
+                      display: 'flex',
+                      justifyContent: 'center',
                     }}
                   >
-                    {key.label}
+                    <div
+                      style={{
+                        writingMode: 'vertical-rl',
+                        fontSize: '7pt',
+                        fontWeight: 600,
+                        color: '#1e293b',
+                        lineHeight: 1.25,
+                        maxHeight: '100%',
+                        textAlign: 'center',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {key.label}
+                    </div>
                   </div>
                 </div>
               ))}
