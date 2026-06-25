@@ -2629,28 +2629,36 @@ const App: React.FC = () => {
         {view === 'scanner' && (
           <div className="min-h-screen bg-slate-50 p-4">
             <div className="max-w-xl mx-auto">
-              <div className="bg-white rounded-3xl shadow-xl p-6">
-                <h1 className="text-2xl font-bold text-slate-900 mb-2">
-                  Scanner QR Code
-                </h1>
-
-                <p className="text-slate-500 mb-6">
-                  Aponte a câmera para o QR Code da chave.
-                </p>
+              <div className="bg-white rounded-3xl shadow-xl p-5 sm:p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h1 className="text-2xl font-bold text-slate-900">
+                      Escanear QR Code
+                    </h1>
+                    <p className="text-slate-500 text-sm">
+                      Aponte a câmera para o QR da chave ou da porta.
+                    </p>
+                  </div>
+                  <div className="text-3xl">📷</div>
+                </div>
 
                 <div
                   id="qr-reader"
-                  className="overflow-hidden rounded-2xl"
+                  className="overflow-hidden rounded-2xl border border-slate-200"
                 />
+
+                <div className="mt-4 rounded-xl bg-slate-50 border border-slate-100 p-3 text-center text-xs text-slate-500">
+                  🚪 QR da <b>porta</b> mostra qual chave abre &nbsp;·&nbsp; 🔑 QR da <b>chave</b> libera a retirada.
+                </div>
 
                 <button
                   onClick={() => {
                     if (profile?.must_change_password) return;
                     setView('dashboard');
                   }}
-                  className="mt-6 w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-3 rounded-xl"
+                  className="mt-4 w-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold py-4 rounded-xl"
                 >
-                  Fechar Scanner
+                  Fechar
                 </button>
               </div>
             </div>
@@ -3836,9 +3844,9 @@ const App: React.FC = () => {
       )}
 
       {isCheckOutModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[92vh] overflow-y-auto animate-in zoom-in duration-200">
-            <div className="px-8 py-6 bg-slate-50 border-b flex justify-between items-center">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-xl max-h-[94vh] overflow-y-auto animate-in slide-in-from-bottom sm:zoom-in duration-200">
+            <div className="px-5 py-4 sm:px-8 sm:py-6 bg-slate-50 border-b flex justify-between items-center sticky top-0 z-10">
               <div>
                 <h2 className="text-2xl font-bold text-slate-900">
                   Protocolo de Retirada
@@ -3855,7 +3863,7 @@ const App: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-4 md:p-8 space-y-5">
+            <div className="p-4 sm:p-8 space-y-5">
               <div className="bg-blue-50 p-4 rounded-xl flex items-center space-x-4 border border-blue-100">
                 <div className="text-3xl">🔑</div>
                 <div>
@@ -3904,7 +3912,7 @@ const App: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-4 pb-1 sticky bottom-0 bg-white -mx-4 sm:-mx-8 px-4 sm:px-8 border-t border-slate-100">
                 <button
                   onClick={() => setIsCheckOutModalOpen(false)}
                   className="flex-1 px-6 py-4 rounded-xl font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
