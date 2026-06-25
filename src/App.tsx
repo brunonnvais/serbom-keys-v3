@@ -4642,7 +4642,7 @@ const App: React.FC = () => {
                 gap: '3mm',
                 padding: '3mm',
                 boxSizing: 'border-box',
-                breakInside: 'avoid',
+                pageBreakInside: 'avoid',
               }}
             >
               <QRCodeCanvas
@@ -4680,7 +4680,7 @@ const App: React.FC = () => {
                 alignItems: 'center',
                 padding: '3mm',
                 boxSizing: 'border-box',
-                breakInside: 'avoid',
+                pageBreakInside: 'avoid',
               }}
             >
               <QRCodeCanvas
@@ -4723,7 +4723,7 @@ const App: React.FC = () => {
                     gap: '2mm',
                     padding: '2mm',
                     boxSizing: 'border-box',
-                    breakInside: 'avoid',
+                    pageBreakInside: 'avoid',
                   }}
                 >
                   <QRCodeCanvas
@@ -4761,7 +4761,7 @@ const App: React.FC = () => {
                 fontSize: '14pt',
                 fontWeight: 800,
                 margin: '0 0 4mm',
-                breakBefore: 'page',
+                pageBreakBefore: 'always',
               }}
             >
               QR das Portas — cole na porta
@@ -4780,7 +4780,7 @@ const App: React.FC = () => {
                     alignItems: 'center',
                     padding: '3mm',
                     boxSizing: 'border-box',
-                    breakInside: 'avoid',
+                    pageBreakInside: 'avoid',
                   }}
                 >
                   <QRCodeCanvas
