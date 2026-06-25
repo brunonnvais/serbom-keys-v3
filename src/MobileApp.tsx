@@ -619,7 +619,7 @@ export default function MobileApp() {
           className="fixed inset-0 z-[70] bg-white flex flex-col p-3"
           style={{ touchAction: 'none', overscrollBehavior: 'none' }}
         >
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between mb-2 shrink-0">
             <div>
               <h2 className="text-lg font-bold text-slate-900">Assinatura</h2>
               <p className="text-xs text-slate-500">Assine dentro do campo.</p>
@@ -634,7 +634,7 @@ export default function MobileApp() {
           </div>
 
           <div
-            className="flex-1 rounded-xl border-2 border-slate-300 overflow-hidden bg-white"
+            className="flex-1 min-h-0 rounded-xl border-2 border-slate-300 overflow-hidden bg-white"
             style={{ touchAction: 'none', overscrollBehavior: 'none' }}
           >
             <canvas
@@ -655,7 +655,7 @@ export default function MobileApp() {
             />
           </div>
 
-          <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-3 shrink-0">
             <button
               type="button"
               onClick={sigClear}
