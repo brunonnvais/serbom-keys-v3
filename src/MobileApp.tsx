@@ -7,6 +7,7 @@ import {
   rpcCheckoutKey,
   rpcReturnKey,
 } from '../services/keysService';
+import { saveInventory, type InventoryItemInput } from '../services/inventoryService';
 import { Html5Qrcode } from 'html5-qrcode';
 import acessaLogo from './assets/acessa/acessa_horizontal.png';
 import vsaLogo from './assets/vsa-logo.png';
@@ -97,6 +98,20 @@ export default function MobileApp() {
 
   const [scanning, setScanning] = useState(false);
   const html5QrRef = useRef<Html5Qrcode | null>(null);
+  const scanModeRef = useRef<'action' | 'inventory'>('action');
+  const lastScanRef = useRef<{ id: string; t: number }>({ id: '', t: 0 });
+
+  // Conferência de inventário
+  const [conf, setConf] = useState<null | {
+    expected: Key[];
+    presentIds: string[];
+    unexpected: Key[];
+  }>(null);
+  const [confSummary, setConfSummary] = useState<null | {
+    present: number;
+    missing: Key[];
+    unexpected: Key[];
+  }>(null);
 
   const [sheet, setSheet] = useState<{ key: Key; mode: SheetMode } | null>(null);
   const [checkoutName, setCheckoutName] = useState('');
@@ -215,6 +230,31 @@ export default function MobileApp() {
         (k) => String(k.id) === String(keyId)
       );
 
+      // Modo conferência: câmera fica aberta, vai marcando as chaves.
+      if (scanModeRef.current === 'inventory') {
+        const now = Date.now();
+        if (
+          lastScanRef.current.id === keyId &&
+          now - lastScanRef.current.t < 2500
+        ) {
+          return; // evita contar o mesmo QR repetido
+        }
+        lastScanRef.current = { id: keyId, t: now };
+
+        if (!found) {
+          notify('Chave não encontrada no sistema.', 'err');
+          return;
+        }
+        markPresent(found);
+        if (normalize(found.status) === 'DISPONIVEL') {
+          notify(`✓ ${found.code} conferida`, 'ok');
+        } else {
+          notify(`⚠ ${found.code} estava EM USO no sistema`, 'err');
+        }
+        return;
+      }
+
+      // Modo ação (retirar/devolver): fecha a câmera após 1 leitura.
       setScanning(false);
 
       if (!found) {
@@ -233,6 +273,82 @@ export default function MobileApp() {
       else notify('Chave indisponível para ação.', 'err');
     } catch {
       notify('QR Code inválido.', 'err');
+    }
+  };
+
+  // ---------- Conferência de inventário ----------
+  const startConference = () => {
+    const expected = keys.filter((k) => normalize(k.status) === 'DISPONIVEL');
+    setConf({ expected, presentIds: [], unexpected: [] });
+  };
+
+  const markPresent = (key: Key) => {
+    setConf((c) => {
+      if (!c) return c;
+      const id = String(key.id);
+      const isExpected = c.expected.some((k) => String(k.id) === id);
+      if (isExpected) {
+        if (c.presentIds.includes(id)) return c;
+        return { ...c, presentIds: [...c.presentIds, id] };
+      }
+      if (c.unexpected.some((k) => String(k.id) === id)) return c;
+      return { ...c, unexpected: [...c.unexpected, key] };
+    });
+  };
+
+  const togglePresent = (key: Key) => {
+    setConf((c) => {
+      if (!c) return c;
+      const id = String(key.id);
+      return c.presentIds.includes(id)
+        ? { ...c, presentIds: c.presentIds.filter((x) => x !== id) }
+        : { ...c, presentIds: [...c.presentIds, id] };
+    });
+  };
+
+  const finalizeConference = async () => {
+    if (!conf) return;
+    setBusy(true);
+    try {
+      const presentSet = new Set(conf.presentIds.map(String));
+      const missing = conf.expected.filter(
+        (k) => !presentSet.has(String(k.id))
+      );
+
+      const items: InventoryItemInput[] = [
+        ...conf.expected.map((k) => ({
+          key_id: String(k.id),
+          key_code: k.code || '',
+          key_label: k.label || '',
+          result: presentSet.has(String(k.id))
+            ? ('present' as const)
+            : ('missing' as const),
+        })),
+        ...conf.unexpected.map((k) => ({
+          key_id: String(k.id),
+          key_code: k.code || '',
+          key_label: k.label || '',
+          result: 'unexpected' as const,
+        })),
+      ];
+
+      await saveInventory({
+        performedBy: session?.user?.id ?? null,
+        performedByName: profile?.full_name || 'Operador',
+        items,
+      });
+
+      setConfSummary({
+        present: presentSet.size,
+        missing,
+        unexpected: conf.unexpected,
+      });
+      setConf(null);
+      notify('Conferência salva com sucesso.', 'ok');
+    } catch (e: any) {
+      notify(`Erro ao salvar conferência: ${e?.message ?? 'erro'}`, 'err');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -471,10 +587,20 @@ export default function MobileApp() {
 
       <div className="p-4 space-y-4">
         <button
-          onClick={() => setScanning(true)}
+          onClick={() => {
+            scanModeRef.current = 'action';
+            setScanning(true);
+          }}
           className="w-full bg-[#BA7517] text-white font-bold py-5 rounded-2xl text-lg shadow-lg active:scale-[0.99] transition flex items-center justify-center gap-2"
         >
           📷 Escanear QR
+        </button>
+
+        <button
+          onClick={startConference}
+          className="w-full bg-white border-2 border-[#BA7517] text-[#BA7517] font-bold py-4 rounded-2xl active:scale-[0.99] transition flex items-center justify-center gap-2"
+        >
+          📋 Conferência de Inventário
         </button>
 
         <input
@@ -517,12 +643,14 @@ export default function MobileApp() {
       {scanning && (
         <div className="fixed inset-0 bg-white z-40 flex flex-col">
           <header className="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
-            <h1 className="font-bold text-slate-900">Escanear QR</h1>
+            <h1 className="font-bold text-slate-900">
+              {conf ? 'Conferência' : 'Escanear QR'}
+            </h1>
             <button
               onClick={() => setScanning(false)}
               className="text-slate-500 font-bold"
             >
-              Fechar
+              {conf ? 'Concluir leitura' : 'Fechar'}
             </button>
           </header>
           <div className="p-4">
@@ -530,10 +658,198 @@ export default function MobileApp() {
               id="m-qr-reader"
               className="w-full rounded-2xl overflow-hidden border border-slate-200"
             />
-            <p className="text-center text-xs text-slate-500 mt-4">
-              🚪 QR da <b>porta</b> identifica a chave &nbsp;·&nbsp; 🔑 QR da{' '}
-              <b>chave</b> libera a ação.
+            {conf ? (
+              <div className="text-center mt-4">
+                <p className="text-lg font-bold text-slate-900">
+                  Conferidas: {conf.presentIds.length} / {conf.expected.length}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Escaneie as chaves que estão no claviculário.
+                </p>
+              </div>
+            ) : (
+              <p className="text-center text-xs text-slate-500 mt-4">
+                🚪 QR da <b>porta</b> identifica a chave &nbsp;·&nbsp; 🔑 QR da{' '}
+                <b>chave</b> libera a ação.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Conferência de inventário */}
+      {conf && !scanning && (
+        <div className="fixed inset-0 bg-slate-50 z-30 flex flex-col">
+          <header className="px-4 py-3 bg-white border-b border-slate-200 flex items-center justify-between">
+            <h1 className="font-bold text-slate-900">Conferência de Inventário</h1>
+            <button
+              onClick={() => setConf(null)}
+              className="text-slate-500 font-bold text-sm"
+            >
+              Cancelar
+            </button>
+          </header>
+
+          <div className="px-4 py-3 bg-white border-b border-slate-100">
+            <p className="text-sm text-slate-500">
+              Conferidas{' '}
+              <b className="text-slate-900">
+                {conf.presentIds.length} / {conf.expected.length}
+              </b>
             </p>
+            <div className="h-2 bg-slate-200 rounded-full mt-2 overflow-hidden">
+              <div
+                className="h-full bg-emerald-500"
+                style={{
+                  width: `${
+                    conf.expected.length
+                      ? (conf.presentIds.length / conf.expected.length) * 100
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {conf.unexpected.length > 0 && (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-orange-700 text-sm">
+                ⚠ {conf.unexpected.length} chave(s) escaneada(s) estavam{' '}
+                <b>EM USO</b> no sistema (devolvidas sem registrar).
+              </div>
+            )}
+
+            {conf.expected.map((key) => {
+              const present = conf.presentIds.includes(String(key.id));
+              return (
+                <button
+                  key={key.id}
+                  onClick={() => togglePresent(key)}
+                  className={`w-full text-left rounded-xl border p-3 flex items-center justify-between gap-3 ${
+                    present
+                      ? 'bg-emerald-50 border-emerald-200'
+                      : 'bg-white border-slate-200'
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-900">{key.code}</p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {key.label}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-lg">
+                    {present ? '✅' : '⬜'}
+                  </span>
+                </button>
+              );
+            })}
+
+            {conf.expected.length === 0 && (
+              <p className="text-center text-slate-400 text-sm py-10">
+                Nenhuma chave disponível para conferir no momento.
+              </p>
+            )}
+          </div>
+
+          <div className="p-4 bg-white border-t border-slate-200 space-y-3">
+            <button
+              onClick={() => {
+                scanModeRef.current = 'inventory';
+                setScanning(true);
+              }}
+              className="w-full bg-[#BA7517] text-white font-bold py-4 rounded-xl"
+            >
+              📷 Escanear chaves
+            </button>
+            <button
+              onClick={finalizeConference}
+              disabled={busy}
+              className="w-full bg-emerald-600 text-white font-bold py-4 rounded-xl disabled:bg-slate-300"
+            >
+              {busy ? 'Salvando…' : 'Finalizar e salvar'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Resumo da conferência */}
+      {confSummary && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-end">
+          <div className="bg-white w-full rounded-t-3xl max-h-[92vh] overflow-y-auto p-5">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">
+              Resultado da Conferência
+            </h2>
+
+            <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="bg-emerald-50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-extrabold text-emerald-700">
+                  {confSummary.present}
+                </p>
+                <p className="text-xs text-emerald-700">Presentes</p>
+              </div>
+              <div className="bg-rose-50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-extrabold text-rose-700">
+                  {confSummary.missing.length}
+                </p>
+                <p className="text-xs text-rose-700">Sumidas</p>
+              </div>
+              <div className="bg-orange-50 rounded-xl p-3 text-center">
+                <p className="text-2xl font-extrabold text-orange-700">
+                  {confSummary.unexpected.length}
+                </p>
+                <p className="text-xs text-orange-700">Divergentes</p>
+              </div>
+            </div>
+
+            {confSummary.missing.length > 0 && (
+              <div className="mb-4">
+                <p className="font-bold text-rose-700 mb-2">
+                  🔴 Não encontradas (sumidas)
+                </p>
+                <div className="space-y-1">
+                  {confSummary.missing.map((k) => (
+                    <div
+                      key={k.id}
+                      className="text-sm bg-rose-50 rounded-lg px-3 py-2"
+                    >
+                      <b>{k.code}</b> — {k.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {confSummary.unexpected.length > 0 && (
+              <div className="mb-4">
+                <p className="font-bold text-orange-700 mb-2">
+                  🟠 Estavam EM USO no sistema (devolvidas sem registrar)
+                </p>
+                <div className="space-y-1">
+                  {confSummary.unexpected.map((k) => (
+                    <div
+                      key={k.id}
+                      className="text-sm bg-orange-50 rounded-lg px-3 py-2"
+                    >
+                      <b>{k.code}</b> — {k.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {confSummary.missing.length === 0 &&
+              confSummary.unexpected.length === 0 && (
+                <p className="text-center text-emerald-700 font-bold py-4">
+                  ✅ Tudo certo! Todas as chaves conferem com o sistema.
+                </p>
+              )}
+
+            <button
+              onClick={() => setConfSummary(null)}
+              className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl mt-2"
+            >
+              Concluir
+            </button>
           </div>
         </div>
       )}
