@@ -37,6 +37,26 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import acessaLogo from "./assets/acessa/acessa_horizontal.png";
 import vsaLogo from "./assets/vsa-logo.png";
+// Busca inteligente: ignora acentos/maiúsculas e exige que TODOS os termos
+// digitados apareçam em qualquer um dos campos informados.
+const stripAccents = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+
+const smartSearch = (
+  query: string,
+  ...fields: (string | number | null | undefined)[]
+) => {
+  const q = stripAccents(String(query || '').trim());
+  if (!q) return true;
+  const haystack = stripAccents(
+    fields.filter((f) => f !== null && f !== undefined).join(' ')
+  );
+  return q.split(/\s+/).every((token) => haystack.includes(token));
+};
+
 const SidebarItem: React.FC<{
   active: boolean;
   label: string;
@@ -2340,7 +2360,7 @@ const App: React.FC = () => {
                 type="text"
                 value={keySearch}
                 onChange={(e) => setKeySearch(e.target.value)}
-                placeholder="Pesquisar por código, nome, descrição ou setor..."
+                placeholder="Buscar por qualquer informação: código, nome, setor, armário, status…"
                 className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -2439,15 +2459,19 @@ const App: React.FC = () => {
                     if (!sameCabinet) return false;
                   }
 
-                  const search = keySearch.trim().toLowerCase();
+                  const cabinetName = cabinets.find(
+                    (c: any) => String(c.id) === String(key.cabinet_id)
+                  )?.name;
 
-                  if (!search) return true;
-
-                  return (
-                    key.code?.toLowerCase().includes(search) ||
-                    key.label?.toLowerCase().includes(search) ||
-                    key.description?.toLowerCase().includes(search) ||
-                    key.sector?.toLowerCase().includes(search)
+                  return smartSearch(
+                    keySearch,
+                    key.code,
+                    key.label,
+                    key.description,
+                    key.sector,
+                    key.sector_name,
+                    cabinetName,
+                    formatStatusLabel(key.status)
                   );
                 })
                 .map((key) => (
@@ -3297,7 +3321,7 @@ const App: React.FC = () => {
             <div className="bg-white rounded-2xl border border-slate-100 p-4 flex flex-wrap gap-3">
               <input
                 type="text"
-                placeholder="Pesquisar responsável ou chave..."
+                placeholder="Buscar por responsável, autorizador, chave ou setor…"
                 value={historySearch}
                 onChange={(e) => setHistorySearch(e.target.value)}
                 className="border border-slate-200 rounded-lg px-4 py-2 text-sm flex-1 min-w-[220px]"
@@ -3346,12 +3370,20 @@ const App: React.FC = () => {
                           m.withdrawn_by_name ||
                           '';
 
-                        const search = historySearch.toLowerCase();
+                        const authorizedName =
+                          m.authorized_by_name ||
+                          m.authorizedByName ||
+                          '';
 
-                        const matchesSearch =
-                          responsibleName.toLowerCase().includes(search) ||
-                          key?.code?.toLowerCase().includes(search) ||
-                          key?.label?.toLowerCase().includes(search);
+                        const matchesSearch = smartSearch(
+                          historySearch,
+                          responsibleName,
+                          authorizedName,
+                          key?.code,
+                          key?.label,
+                          key?.sector_name,
+                          key?.sector
+                        );
 
                         const matchesStatus =
                           historyStatus === 'ALL'

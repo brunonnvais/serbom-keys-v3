@@ -38,6 +38,25 @@ const statusClass = (s?: string) => {
   return 'bg-slate-200 text-slate-600';
 };
 
+// Busca inteligente: ignora acento/maiúscula e exige todos os termos digitados.
+const stripAccents = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase();
+
+const smartSearch = (
+  query: string,
+  ...fields: (string | number | null | undefined)[]
+) => {
+  const q = stripAccents(String(query || '').trim());
+  if (!q) return true;
+  const haystack = stripAccents(
+    fields.filter((f) => f !== null && f !== undefined).join(' ')
+  );
+  return q.split(/\s+/).every((token) => haystack.includes(token));
+};
+
 export default function MobileApp() {
   const [authLoading, setAuthLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
@@ -342,13 +361,17 @@ export default function MobileApp() {
   };
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    if (!q) return keys;
-    return keys.filter(
-      (k) =>
-        k.code?.toLowerCase().includes(q) ||
-        k.label?.toLowerCase().includes(q) ||
-        (k.sector_name || k.sector || '').toLowerCase().includes(q)
+    if (!search.trim()) return keys;
+    return keys.filter((k) =>
+      smartSearch(
+        search,
+        k.code,
+        k.label,
+        k.description,
+        k.sector_name,
+        k.sector,
+        statusLabel(k.status)
+      )
     );
   }, [keys, search]);
 
