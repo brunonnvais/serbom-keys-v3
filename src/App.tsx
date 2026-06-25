@@ -57,6 +57,31 @@ const smartSearch = (
   return q.split(/\s+/).every((token) => haystack.includes(token));
 };
 
+// Traduz erros de login para mensagens amigáveis (sem "Failed to fetch" cru).
+const friendlyAuthError = (error: any): string => {
+  const msg = String(error?.message || error || '').toLowerCase();
+  if (
+    msg.includes('failed to fetch') ||
+    msg.includes('networkerror') ||
+    msg.includes('load failed') ||
+    msg.includes('fetch') ||
+    error?.name === 'TypeError'
+  ) {
+    return 'Sem conexão com o servidor. Verifique sua internet e tente novamente.';
+  }
+  if (
+    msg.includes('invalid login') ||
+    msg.includes('invalid credentials') ||
+    msg.includes('email or password')
+  ) {
+    return 'E-mail ou senha incorretos.';
+  }
+  if (msg.includes('email not confirmed')) {
+    return 'E-mail ainda não confirmado.';
+  }
+  return error?.message || 'Não foi possível entrar. Tente novamente.';
+};
+
 const SidebarItem: React.FC<{
   active: boolean;
   label: string;
@@ -1404,7 +1429,7 @@ const App: React.FC = () => {
       setView('dashboard');
     } catch (error: any) {
       console.error('Erro no login:', error);
-      setLoginError(error?.message || 'Erro ao fazer login');
+      setLoginError(friendlyAuthError(error));
     }
   };
   const handleChangePassword = async () => {

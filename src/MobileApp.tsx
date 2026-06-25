@@ -57,6 +57,30 @@ const smartSearch = (
   return q.split(/\s+/).every((token) => haystack.includes(token));
 };
 
+const friendlyAuthError = (error: any): string => {
+  const msg = String(error?.message || error || '').toLowerCase();
+  if (
+    msg.includes('failed to fetch') ||
+    msg.includes('networkerror') ||
+    msg.includes('load failed') ||
+    msg.includes('fetch') ||
+    error?.name === 'TypeError'
+  ) {
+    return 'Sem conexão com o servidor. Verifique sua internet e tente novamente.';
+  }
+  if (
+    msg.includes('invalid login') ||
+    msg.includes('invalid credentials') ||
+    msg.includes('email or password')
+  ) {
+    return 'E-mail ou senha incorretos.';
+  }
+  if (msg.includes('email not confirmed')) {
+    return 'E-mail ainda não confirmado.';
+  }
+  return error?.message || 'Não foi possível entrar. Tente novamente.';
+};
+
 export default function MobileApp() {
   const [authLoading, setAuthLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
@@ -162,7 +186,7 @@ export default function MobileApp() {
       setEmail('');
       setPass('');
     } catch (e: any) {
-      setLoginError(e?.message || 'Erro ao entrar');
+      setLoginError(friendlyAuthError(e));
     } finally {
       setLoggingIn(false);
     }
