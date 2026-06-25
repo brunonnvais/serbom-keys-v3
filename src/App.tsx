@@ -4626,94 +4626,186 @@ const App: React.FC = () => {
       {/* AREA DE IMPRESSÃO */}
       <div className="print-area">
         {printKey ? (
-          <div className="flex flex-col items-center justify-center min-h-screen">
-            <h1 className="text-3xl font-bold mb-6">
-              QR Code da Chave
+          <div style={{ padding: '4mm' }}>
+            <h1 style={{ fontSize: '14pt', fontWeight: 800, marginBottom: '3mm' }}>
+              Etiqueta da Chave — recorte e cole na chave
             </h1>
 
-            <div className="flex gap-16 items-start">
-              <div className="flex flex-col items-center">
-                <QRCodeCanvas
-                  value={`${APP_URL}/key/${printKey.id}`}
-                  size={220}
-                />
-                <p className="mt-3 text-lg font-bold text-slate-700">
-                  CHAVE (retirar)
-                </p>
-              </div>
-              <div className="flex flex-col items-center">
-                <QRCodeCanvas
-                  value={`${APP_URL}/key/${printKey.id}?porta=1`}
-                  size={220}
-                />
-                <p className="mt-3 text-lg font-bold text-slate-700">
-                  PORTA (identificar)
-                </p>
+            <div
+              style={{
+                width: '60mm',
+                height: '24mm',
+                border: '1px dashed #94a3b8',
+                borderRadius: '2mm',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3mm',
+                padding: '3mm',
+                boxSizing: 'border-box',
+                breakInside: 'avoid',
+              }}
+            >
+              <QRCodeCanvas
+                value={`${APP_URL}/key/${printKey.id}`}
+                size={240}
+                style={{ width: '18mm', height: '18mm' }}
+              />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 800, fontSize: '13pt', lineHeight: 1.1 }}>
+                  {printKey.code}
+                </div>
+                <div style={{ fontSize: '8pt', color: '#475569', lineHeight: 1.15 }}>
+                  {printKey.label}
+                </div>
               </div>
             </div>
 
-            <h2 className="mt-8 text-4xl font-extrabold">
-              {printKey.code}
-            </h2>
-
-            <p className="text-xl text-slate-700 mt-2">
-              {printKey.label}
-            </p>
-
-            <p className="text-sm text-slate-500 mt-2">
-              Setor: {printKey.sector_name || printKey.sector || 'Sem setor'}
-            </p>
-          </div>
-        ) : (
-          <>
-            <h1 className="text-3xl font-bold mb-8">
-              QR Codes das Chaves
+            <h1
+              style={{
+                fontSize: '14pt',
+                fontWeight: 800,
+                margin: '10mm 0 3mm',
+              }}
+            >
+              QR da Porta — cole na porta
             </h1>
 
-            <div className="grid grid-cols-3 gap-6">
+            <div
+              style={{
+                width: '50mm',
+                border: '1px dashed #94a3b8',
+                borderRadius: '2mm',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '3mm',
+                boxSizing: 'border-box',
+                breakInside: 'avoid',
+              }}
+            >
+              <QRCodeCanvas
+                value={`${APP_URL}/key/${printKey.id}?porta=1`}
+                size={400}
+                style={{ width: '40mm', height: '40mm' }}
+              />
+              <div style={{ fontWeight: 800, fontSize: '12pt', marginTop: '2mm' }}>
+                {printKey.code}
+              </div>
+              <div
+                style={{
+                  fontSize: '8pt',
+                  color: '#475569',
+                  textAlign: 'center',
+                }}
+              >
+                {printKey.label}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: '2mm' }}>
+            {/* Etiquetas das chaves (cortar e colar na chave) */}
+            <h1 style={{ fontSize: '14pt', fontWeight: 800, marginBottom: '4mm' }}>
+              Etiquetas das Chaves — recorte e cole na chave
+            </h1>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4mm' }}>
               {keys.map((key) => (
                 <div
                   key={key.id}
-                  className="border border-slate-300 rounded-xl p-4 flex flex-col items-center justify-center"
+                  style={{
+                    width: '52mm',
+                    height: '20mm',
+                    border: '1px dashed #94a3b8',
+                    borderRadius: '2mm',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '2mm',
+                    padding: '2mm',
+                    boxSizing: 'border-box',
+                    breakInside: 'avoid',
+                  }}
                 >
-                  <div className="flex gap-4">
-                    <div className="flex flex-col items-center">
-                      <QRCodeCanvas
-                        value={`${APP_URL}/key/${key.id}`}
-                        size={110}
-                      />
-                      <p className="text-[10px] font-bold text-slate-600 mt-1">
-                        CHAVE
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <QRCodeCanvas
-                        value={`${APP_URL}/key/${key.id}?porta=1`}
-                        size={110}
-                      />
-                      <p className="text-[10px] font-bold text-slate-600 mt-1">
-                        PORTA
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 text-center">
-                    <h2 className="font-bold text-lg">
+                  <QRCodeCanvas
+                    value={`${APP_URL}/key/${key.id}`}
+                    size={200}
+                    style={{ width: '16mm', height: '16mm', flexShrink: 0 }}
+                  />
+                  <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        fontWeight: 800,
+                        fontSize: '11pt',
+                        lineHeight: 1.1,
+                      }}
+                    >
                       {key.code}
-                    </h2>
-
-                    <p className="text-sm text-slate-600">
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '7pt',
+                        color: '#475569',
+                        lineHeight: 1.15,
+                      }}
+                    >
                       {key.label}
-                    </p>
-
-                    <p className="text-xs text-slate-500 mt-1">
-                      Setor: {key.sector_name || key.sector || 'Sem setor'}
-                    </p>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-          </>
+
+            {/* QR das portas (maiores, em nova página) */}
+            <h1
+              style={{
+                fontSize: '14pt',
+                fontWeight: 800,
+                margin: '0 0 4mm',
+                breakBefore: 'page',
+              }}
+            >
+              QR das Portas — cole na porta
+            </h1>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5mm' }}>
+              {keys.map((key) => (
+                <div
+                  key={key.id}
+                  style={{
+                    width: '46mm',
+                    border: '1px dashed #94a3b8',
+                    borderRadius: '2mm',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    padding: '3mm',
+                    boxSizing: 'border-box',
+                    breakInside: 'avoid',
+                  }}
+                >
+                  <QRCodeCanvas
+                    value={`${APP_URL}/key/${key.id}?porta=1`}
+                    size={340}
+                    style={{ width: '34mm', height: '34mm' }}
+                  />
+                  <div
+                    style={{ fontWeight: 800, fontSize: '11pt', marginTop: '2mm' }}
+                  >
+                    {key.code}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '8pt',
+                      color: '#475569',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {key.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>
