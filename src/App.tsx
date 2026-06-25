@@ -4633,57 +4633,47 @@ const App: React.FC = () => {
 
             <div
               style={{
-                width: '19mm',
-                height: '40mm',
+                width: '50mm',
+                height: '20mm',
                 border: '1px dashed #94a3b8',
                 borderRadius: '1.5mm',
                 display: 'flex',
-                flexDirection: 'column',
                 alignItems: 'center',
-                gap: '1mm',
+                gap: '2mm',
                 padding: '1.5mm',
                 boxSizing: 'border-box',
                 pageBreakInside: 'avoid',
-                textAlign: 'center',
                 overflow: 'hidden',
               }}
             >
               <QRCodeCanvas
                 value={`${APP_URL}/key/${printKey.id}`}
-                size={240}
+                size={220}
                 style={{ width: '16mm', height: '16mm', flexShrink: 0 }}
               />
-              <div
-                style={{
-                  fontWeight: 800,
-                  fontSize: '10pt',
-                  lineHeight: 1,
-                  color: '#0f172a',
-                  flexShrink: 0,
-                }}
-              >
-                {printKey.code}
-              </div>
-              <div
-                style={{
-                  flex: 1,
-                  minHeight: 0,
-                  width: '100%',
-                  overflow: 'hidden',
-                  display: 'flex',
-                  justifyContent: 'center',
-                }}
-              >
+              <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
                 <div
                   style={{
-                    writingMode: 'vertical-rl',
-                    fontSize: '7pt',
+                    fontWeight: 800,
+                    fontSize: '11pt',
+                    lineHeight: 1,
+                    color: '#0f172a',
+                  }}
+                >
+                  {printKey.code}
+                </div>
+                <div
+                  style={{
+                    fontSize: '6.5pt',
                     fontWeight: 600,
                     color: '#1e293b',
-                    lineHeight: 1.25,
-                    maxHeight: '100%',
-                    textAlign: 'center',
+                    lineHeight: 1.15,
+                    marginTop: '0.5mm',
                     wordBreak: 'break-word',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
                   }}
                 >
                   {printKey.label}
@@ -4745,57 +4735,47 @@ const App: React.FC = () => {
                 <div
                   key={key.id}
                   style={{
-                    width: '19mm',
-                    height: '40mm',
+                    width: '50mm',
+                    height: '20mm',
                     border: '1px dashed #94a3b8',
                     borderRadius: '1.5mm',
                     display: 'flex',
-                    flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '1mm',
+                    gap: '2mm',
                     padding: '1.5mm',
                     boxSizing: 'border-box',
                     pageBreakInside: 'avoid',
-                    textAlign: 'center',
                     overflow: 'hidden',
                   }}
                 >
                   <QRCodeCanvas
                     value={`${APP_URL}/key/${key.id}`}
-                    size={240}
+                    size={220}
                     style={{ width: '16mm', height: '16mm', flexShrink: 0 }}
                   />
-                  <div
-                    style={{
-                      fontWeight: 800,
-                      fontSize: '10pt',
-                      lineHeight: 1,
-                      color: '#0f172a',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {key.code}
-                  </div>
-                  <div
-                    style={{
-                      flex: 1,
-                      minHeight: 0,
-                      width: '100%',
-                      overflow: 'hidden',
-                      display: 'flex',
-                      justifyContent: 'center',
-                    }}
-                  >
+                  <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
                     <div
                       style={{
-                        writingMode: 'vertical-rl',
-                        fontSize: '7pt',
+                        fontWeight: 800,
+                        fontSize: '11pt',
+                        lineHeight: 1,
+                        color: '#0f172a',
+                      }}
+                    >
+                      {key.code}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '6.5pt',
                         fontWeight: 600,
                         color: '#1e293b',
-                        lineHeight: 1.25,
-                        maxHeight: '100%',
-                        textAlign: 'center',
+                        lineHeight: 1.15,
+                        marginTop: '0.5mm',
                         wordBreak: 'break-word',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 3,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
                       }}
                     >
                       {key.label}
