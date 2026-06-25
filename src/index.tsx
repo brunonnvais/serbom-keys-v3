@@ -13,6 +13,14 @@ if ("serviceWorker" in navigator) {
     refreshing = true;
     window.location.reload();
   });
+
+  // Checa por uma versão nova ao abrir e a cada 60s enquanto o app estiver aberto.
+  navigator.serviceWorker.ready
+    .then((reg) => {
+      reg.update();
+      setInterval(() => reg.update(), 60 * 1000);
+    })
+    .catch(() => {});
 }
 
 // Página dedicada do operador (mobile) em /operador — o app desktop continua na raiz.
