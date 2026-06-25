@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { Key } from '../types';
 import { supabase } from '../services/supabaseClient';
 import { signInWithEmail, signOut } from '../services/authService';
@@ -7,8 +7,7 @@ import {
   rpcCheckoutKey,
   rpcReturnKey,
 } from '../services/keysService';
-import SignaturePad from '../components/SignaturePad';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import acessaLogo from './assets/acessa/acessa_horizontal.png';
 import vsaLogo from './assets/vsa-logo.png';
 
@@ -50,14 +49,22 @@ export default function MobileApp() {
   const [loggingIn, setLoggingIn] = useState(false);
 
   const [keys, setKeys] = useState<Key[]>([]);
+  const keysRef = useRef<Key[]>([]);
   const [search, setSearch] = useState('');
 
   const [scanning, setScanning] = useState(false);
+  const html5QrRef = useRef<Html5Qrcode | null>(null);
 
   const [sheet, setSheet] = useState<{ key: Key; mode: SheetMode } | null>(null);
   const [checkoutName, setCheckoutName] = useState('');
   const [signature, setSignature] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Assinatura (tela cheia própria, fora do bottom-sheet)
+  const [signing, setSigning] = useState(false);
+  const [hasInk, setHasInk] = useState(false);
+  const sigCanvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingRef = useRef(false);
 
   const [toast, setToast] = useState<{ type: 'ok' | 'err'; msg: string } | null>(
     null
@@ -67,6 +74,10 @@ export default function MobileApp() {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
   };
+
+  useEffect(() => {
+    keysRef.current = keys;
+  }, [keys]);
 
   const loadProfile = async (uid: string) => {
     const { data } = await supabase
@@ -151,58 +162,145 @@ export default function MobileApp() {
     else openSheet(key, 'identify');
   };
 
-  // Scanner
+  // ---------- Scanner (camera traseira direta) ----------
+  const handleDecoded = (decoded: string) => {
+    try {
+      const url = new URL(decoded);
+      const keyId = url.pathname.replace('/key/', '');
+      const isPorta = url.searchParams.get('porta');
+      const found = keysRef.current.find(
+        (k) => String(k.id) === String(keyId)
+      );
+
+      setScanning(false);
+
+      if (!found) {
+        notify('Chave não encontrada no sistema.', 'err');
+        return;
+      }
+
+      if (isPorta) {
+        openSheet(found, 'identify');
+        return;
+      }
+
+      const st = normalize(found.status);
+      if (st === 'DISPONIVEL') openSheet(found, 'retirar');
+      else if (st === 'EM_USO') openSheet(found, 'devolver');
+      else notify('Chave indisponível para ação.', 'err');
+    } catch {
+      notify('QR Code inválido.', 'err');
+    }
+  };
+
   useEffect(() => {
     if (!scanning) return;
 
-    const scanner = new Html5QrcodeScanner(
-      'm-qr-reader',
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 },
-        rememberLastUsedCamera: true,
-        supportedScanTypes: [],
-      },
-      false
-    );
+    const qr = new Html5Qrcode('m-qr-reader');
+    html5QrRef.current = qr;
 
-    scanner.render(
-      (decoded) => {
-        scanner.clear().catch(() => {});
-        try {
-          const url = new URL(decoded);
-          const keyId = url.pathname.replace('/key/', '');
-          const isPorta = url.searchParams.get('porta');
-          const found = keys.find((k) => String(k.id) === String(keyId));
-
-          setScanning(false);
-
-          if (!found) {
-            notify('Chave não encontrada no sistema.', 'err');
-            return;
-          }
-
-          if (isPorta) {
-            openSheet(found, 'identify');
-            return;
-          }
-
-          const st = normalize(found.status);
-          if (st === 'DISPONIVEL') openSheet(found, 'retirar');
-          else if (st === 'EM_USO') openSheet(found, 'devolver');
-          else notify('Chave indisponível para ação.', 'err');
-        } catch {
-          notify('QR Code inválido.', 'err');
-        }
-      },
-      () => {}
-    );
+    qr
+      .start(
+        { facingMode: 'environment' }, // câmera traseira
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decoded) => handleDecoded(decoded),
+        () => {}
+      )
+      .catch((err) => {
+        console.error('Erro ao abrir câmera:', err);
+        notify(
+          'Não foi possível abrir a câmera. Verifique a permissão do navegador.',
+          'err'
+        );
+        setScanning(false);
+      });
 
     return () => {
-      scanner.clear().catch(() => {});
+      const inst = html5QrRef.current;
+      html5QrRef.current = null;
+      if (inst) {
+        inst
+          .stop()
+          .then(() => inst.clear())
+          .catch(() => {});
+      }
     };
-  }, [scanning, keys]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scanning]);
 
+  // ---------- Assinatura ----------
+  useEffect(() => {
+    if (!signing) return;
+    const c = sigCanvasRef.current;
+    const ctx = c?.getContext('2d');
+    if (c && ctx) {
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = '#000';
+    }
+    setHasInk(false);
+  }, [signing]);
+
+  const sigPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const c = sigCanvasRef.current!;
+    const r = c.getBoundingClientRect();
+    return {
+      x: ((e.clientX - r.left) / r.width) * c.width,
+      y: ((e.clientY - r.top) / r.height) * c.height,
+    };
+  };
+
+  const sigDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const c = sigCanvasRef.current;
+    const ctx = c?.getContext('2d');
+    if (!c || !ctx) return;
+    c.setPointerCapture(e.pointerId);
+    drawingRef.current = true;
+    const p = sigPoint(e);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+  };
+
+  const sigMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawingRef.current) return;
+    e.preventDefault();
+    const ctx = sigCanvasRef.current?.getContext('2d');
+    if (!ctx) return;
+    const p = sigPoint(e);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    setHasInk(true);
+  };
+
+  const sigUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    drawingRef.current = false;
+    try {
+      sigCanvasRef.current?.releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const sigClear = () => {
+    const c = sigCanvasRef.current;
+    const ctx = c?.getContext('2d');
+    if (c && ctx) {
+      ctx.clearRect(0, 0, c.width, c.height);
+      setHasInk(false);
+    }
+  };
+
+  const sigConfirm = () => {
+    const c = sigCanvasRef.current;
+    if (!c || !hasInk) return;
+    setSignature(c.toDataURL('image/png'));
+    setSigning(false);
+  };
+
+  // ---------- Ações ----------
   const confirmRetirar = async () => {
     if (!sheet || !checkoutName.trim() || !signature) return;
     if (!session?.user?.id) {
@@ -383,7 +481,7 @@ export default function MobileApp() {
           <div className="p-4">
             <div
               id="m-qr-reader"
-              className="rounded-2xl overflow-hidden border border-slate-200"
+              className="w-full rounded-2xl overflow-hidden border border-slate-200"
             />
             <p className="text-center text-xs text-slate-500 mt-4">
               🚪 QR da <b>porta</b> identifica a chave &nbsp;·&nbsp; 🔑 QR da{' '}
@@ -400,7 +498,7 @@ export default function MobileApp() {
           onClick={() => !busy && setSheet(null)}
         >
           <div
-            className="bg-white w-full rounded-t-3xl max-h-[92vh] overflow-y-auto p-5 animate-in slide-in-from-bottom duration-200"
+            className="bg-white w-full rounded-t-3xl max-h-[92vh] overflow-y-auto p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between mb-4">
@@ -460,7 +558,31 @@ export default function MobileApp() {
                   <label className="text-sm font-bold text-slate-700">
                     Assinatura
                   </label>
-                  <SignaturePad onSave={(b) => setSignature(b)} />
+                  {signature ? (
+                    <div className="mt-1 flex items-center gap-3">
+                      <span className="text-emerald-600 font-bold text-sm">
+                        ✓ Assinatura capturada
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSignature(null);
+                          setSigning(true);
+                        }}
+                        className="text-slate-500 underline text-sm"
+                      >
+                        Refazer
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setSigning(true)}
+                      className="w-full mt-1 bg-blue-600 text-white font-bold py-4 rounded-xl"
+                    >
+                      ✍️ Assinar
+                    </button>
+                  )}
                 </div>
 
                 <button
@@ -491,10 +613,72 @@ export default function MobileApp() {
         </div>
       )}
 
+      {/* Assinatura tela cheia (fora do sheet para não quebrar) */}
+      {signing && (
+        <div
+          className="fixed inset-0 z-[70] bg-white flex flex-col p-3"
+          style={{ touchAction: 'none', overscrollBehavior: 'none' }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Assinatura</h2>
+              <p className="text-xs text-slate-500">Assine dentro do campo.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSigning(false)}
+              className="bg-slate-100 px-4 py-2 rounded-xl font-bold text-slate-600"
+            >
+              Fechar
+            </button>
+          </div>
+
+          <div
+            className="flex-1 rounded-xl border-2 border-slate-300 overflow-hidden bg-white"
+            style={{ touchAction: 'none', overscrollBehavior: 'none' }}
+          >
+            <canvas
+              ref={sigCanvasRef}
+              width={900}
+              height={500}
+              className="block h-full w-full"
+              style={{
+                touchAction: 'none',
+                userSelect: 'none',
+                WebkitUserSelect: 'none',
+              }}
+              onPointerDown={sigDown}
+              onPointerMove={sigMove}
+              onPointerUp={sigUp}
+              onPointerCancel={sigUp}
+              onPointerLeave={sigUp}
+            />
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={sigClear}
+              className="bg-slate-100 py-4 rounded-xl font-bold text-slate-600"
+            >
+              Limpar
+            </button>
+            <button
+              type="button"
+              onClick={sigConfirm}
+              disabled={!hasInk}
+              className="bg-blue-600 text-white py-4 rounded-xl font-bold disabled:bg-slate-300"
+            >
+              Confirmar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
       {toast && (
         <div
-          className={`fixed top-4 left-4 right-4 z-[60] rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${
+          className={`fixed top-4 left-4 right-4 z-[80] rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${
             toast.type === 'ok'
               ? 'bg-emerald-600 text-white'
               : 'bg-rose-600 text-white'
