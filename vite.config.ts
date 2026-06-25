@@ -16,20 +16,20 @@ export default defineConfig(() => {
       VitePWA({
         registerType: 'autoUpdate',
         manifest: {
-          name: 'Claviculário Serbom',
-          short_name: 'Serbom Keys',
+          name: 'ACESSA - Gestão de Chaves',
+          short_name: 'ACESSA',
           description: 'Controle inteligente de chaves',
-          theme_color: '#2563eb',
+          theme_color: '#BA7517',
           background_color: '#ffffff',
           display: 'standalone',
           icons: [
             {
-              src: '/serbom-logo.png',
+              src: '/acessa-icon.png',
               sizes: '192x192',
               type: 'image/png',
             },
             {
-              src: '/serbom-logo.png',
+              src: '/acessa-icon.png',
               sizes: '512x512',
               type: 'image/png',
             },
