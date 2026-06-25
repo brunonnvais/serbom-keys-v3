@@ -225,6 +225,12 @@ const App: React.FC = () => {
   const [printKey, setPrintKey] = useState<Key | null>(null);
   const [shouldPrint, setShouldPrint] = useState(false);
 
+  // Chave identificada ao escanear o QR de uma PORTA (apenas mostra, não libera retirada)
+  const [doorKey, setDoorKey] = useState<Key | null>(null);
+
+  // Modal para exibir o QR (da chave ou da porta) sob demanda
+  const [qrModal, setQrModal] = useState<{ key: Key; type: 'chave' | 'porta' } | null>(null);
+
   const [historySearch, setHistorySearch] = useState('');
   const [historyStatus, setHistoryStatus] = useState('ALL');
   const APP_URL = "https://serbom-keys-v3.vercel.app";
@@ -615,6 +621,14 @@ const App: React.FC = () => {
 
     setHasOpenedQrKey(true);
     setView('keys');
+
+    // QR da PORTA: só identifica qual chave abre, não libera a retirada.
+    const isPorta = new URLSearchParams(window.location.search).get('porta');
+    if (isPorta) {
+      setDoorKey(foundKey);
+      return;
+    }
+
     setSelectedKey(foundKey);
 
     if (normalizeStatus(foundKey.status) === 'DISPONIVEL') {
@@ -669,8 +683,16 @@ const App: React.FC = () => {
             return;
           }
 
-          setSelectedKey(foundKey);
           setView('keys');
+
+          // QR da PORTA: só identifica qual chave abre, não libera a retirada.
+          const isPorta = url.searchParams.get('porta');
+          if (isPorta) {
+            setDoorKey(foundKey);
+            return;
+          }
+
+          setSelectedKey(foundKey);
 
           if (normalizeStatus(foundKey.status) === 'DISPONIVEL') {
             setCheckoutUser('');
@@ -1478,6 +1500,49 @@ const App: React.FC = () => {
       console.error('Erro ao sair:', error);
     }
   };
+  const handleExportKeysExcel = async () => {
+    try {
+      // Import dinâmico: a lib só carrega quando o usuário clica em exportar.
+      const XLSX = await import('xlsx');
+
+      const rows = keys.map((k: any) => ({
+        'Código': k.code ?? '',
+        'Nome': k.label ?? '',
+        'Descrição': k.description ?? '',
+        'Armário':
+          cabinets.find((c: any) => String(c.id) === String(k.cabinet_id))
+            ?.name ?? '',
+        'Setor': k.sector_name ?? k.sector ?? '',
+        'Status': formatStatusLabel(k.status),
+      }));
+
+      if (rows.length === 0) {
+        notify('Não há chaves para exportar.');
+        return;
+      }
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws['!cols'] = [
+        { wch: 12 },
+        { wch: 32 },
+        { wch: 32 },
+        { wch: 16 },
+        { wch: 20 },
+        { wch: 14 },
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Chaves');
+
+      XLSX.writeFile(wb, `chaves-${new Date().toISOString().slice(0, 10)}.xlsx`);
+
+      notify('Exportação concluída.', 'success');
+    } catch (err) {
+      console.error('Erro ao exportar Excel:', err);
+      notify('Erro ao exportar para Excel.');
+    }
+  };
+
   const handleExportHistoryPdf = async () => {
     const doc = new jsPDF();
 
@@ -2239,27 +2304,35 @@ const App: React.FC = () => {
                   Cadastre e controle todas as chaves do condomínio.
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  setPrintKey(null);
-                  setShouldPrint(true);
-                }}
-                className="bg-white border border-slate-300 text-slate-700 px-6 py-2 rounded-xl font-bold hover:bg-slate-50 transition-colors shadow"
-              >
-                🖨️ Imprimir QR Codes
-              </button>
-
-              {(isAdmin || isManager) && (
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleExportKeysExcel}
+                  className="bg-emerald-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow"
+                >
+                  📊 Exportar Excel
+                </button>
 
                 <button
                   onClick={() => {
-                    setIsCreateModalOpen(true);
+                    setPrintKey(null);
+                    setShouldPrint(true);
                   }}
-                  className="bg-slate-900 text-white px-6 py-2 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg"
+                  className="bg-white border border-slate-300 text-slate-700 px-6 py-2 rounded-xl font-bold hover:bg-slate-50 transition-colors shadow"
                 >
-                  + Nova Chave
+                  🖨️ Imprimir QR Codes
                 </button>
-              )}
+
+                {(isAdmin || isManager) && (
+                  <button
+                    onClick={() => {
+                      setIsCreateModalOpen(true);
+                    }}
+                    className="bg-slate-900 text-white px-6 py-2 rounded-xl font-bold hover:bg-slate-800 transition-colors shadow-lg"
+                  >
+                    + Nova Chave
+                  </button>
+                )}
+              </div>
 
             </header>
             <div className="bg-white rounded-2xl border border-slate-200 p-4">
@@ -2489,11 +2562,21 @@ const App: React.FC = () => {
                           'Sem setor'}
                       </span>
                     </div>
-                    <div className="mb-4 flex justify-center">
-                      <QRCodeCanvas
-                        value={`${APP_URL}/key/${key.id}`}
-                        size={96}
-                      />
+                    <div className="mb-4 flex justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setQrModal({ key, type: 'chave' })}
+                        className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-lg text-sm transition-colors"
+                      >
+                        📱 QR Chave
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setQrModal({ key, type: 'porta' })}
+                        className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 rounded-lg text-sm transition-colors"
+                      >
+                        🚪 QR Porta
+                      </button>
                     </div>
                     <button
                       type="button"
@@ -3458,6 +3541,94 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+      {qrModal && (
+        <div
+          className="fixed inset-0 z-[95] bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setQrModal(null)}
+        >
+          <div
+            className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in duration-200 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-900">
+                {qrModal.type === 'porta' ? '🚪 QR da Porta' : '📱 QR da Chave'}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setQrModal(null)}
+                className="text-slate-400 hover:text-slate-600 text-2xl leading-none"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex justify-center">
+              <QRCodeCanvas
+                value={
+                  qrModal.type === 'porta'
+                    ? `${APP_URL}/key/${qrModal.key.id}?porta=1`
+                    : `${APP_URL}/key/${qrModal.key.id}`
+                }
+                size={240}
+              />
+            </div>
+
+            <p className="text-2xl font-extrabold text-slate-900 mt-4">
+              {qrModal.key.code}
+            </p>
+            <p className="text-slate-600">{qrModal.key.label}</p>
+
+            <p className="text-xs text-slate-500 mt-3">
+              {qrModal.type === 'porta'
+                ? 'Cole este QR na PORTA — ele identifica a chave (não libera a retirada).'
+                : 'Cole este QR na CHAVE — usado para retirar.'}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {doorKey && (
+        <div
+          className="fixed inset-0 z-[95] bg-black/50 flex items-center justify-center p-4"
+          onClick={() => setDoorKey(null)}
+        >
+          <div
+            className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl animate-in zoom-in duration-200 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-900">
+                🚪 Chave desta porta
+              </h2>
+              <button
+                type="button"
+                onClick={() => setDoorKey(null)}
+                className="text-slate-400 hover:text-slate-600 text-2xl leading-none"
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="text-xs font-bold text-slate-400 uppercase">Código</p>
+            <p className="text-4xl font-extrabold text-slate-900">
+              {doorKey.code}
+            </p>
+            <p className="text-lg text-slate-600 mt-2">{doorKey.label}</p>
+
+            <button
+              type="button"
+              onClick={() => setDoorKey(null)}
+              className="mt-6 w-full px-5 py-3 rounded-xl bg-slate-100 font-bold hover:bg-slate-200"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      )}
+
       {previewSignature && (
         <div
           className="fixed inset-0 z-[95] bg-black/50 flex items-center justify-center p-4"
@@ -4093,10 +4264,26 @@ const App: React.FC = () => {
               QR Code da Chave
             </h1>
 
-            <QRCodeCanvas
-              value={`${APP_URL}/key/${printKey.id}`}
-              size={260}
-            />
+            <div className="flex gap-16 items-start">
+              <div className="flex flex-col items-center">
+                <QRCodeCanvas
+                  value={`${APP_URL}/key/${printKey.id}`}
+                  size={220}
+                />
+                <p className="mt-3 text-lg font-bold text-slate-700">
+                  CHAVE (retirar)
+                </p>
+              </div>
+              <div className="flex flex-col items-center">
+                <QRCodeCanvas
+                  value={`${APP_URL}/key/${printKey.id}?porta=1`}
+                  size={220}
+                />
+                <p className="mt-3 text-lg font-bold text-slate-700">
+                  PORTA (identificar)
+                </p>
+              </div>
+            </div>
 
             <h2 className="mt-8 text-4xl font-extrabold">
               {printKey.code}
@@ -4122,10 +4309,26 @@ const App: React.FC = () => {
                   key={key.id}
                   className="border border-slate-300 rounded-xl p-4 flex flex-col items-center justify-center"
                 >
-                  <QRCodeCanvas
-                    value={`${APP_URL}/key/${key.id}`}
-                    size={120}
-                  />
+                  <div className="flex gap-4">
+                    <div className="flex flex-col items-center">
+                      <QRCodeCanvas
+                        value={`${APP_URL}/key/${key.id}`}
+                        size={110}
+                      />
+                      <p className="text-[10px] font-bold text-slate-600 mt-1">
+                        CHAVE
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <QRCodeCanvas
+                        value={`${APP_URL}/key/${key.id}?porta=1`}
+                        size={110}
+                      />
+                      <p className="text-[10px] font-bold text-slate-600 mt-1">
+                        PORTA
+                      </p>
+                    </div>
+                  </div>
 
                   <div className="mt-4 text-center">
                     <h2 className="font-bold text-lg">
