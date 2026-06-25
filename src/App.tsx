@@ -4633,40 +4633,40 @@ const App: React.FC = () => {
 
             <div
               style={{
-                width: '40mm',
-                height: '18mm',
+                width: '19mm',
+                height: '39mm',
                 border: '1px dashed #94a3b8',
                 borderRadius: '1.5mm',
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
-                gap: '1.5mm',
+                gap: '1mm',
                 padding: '1.5mm',
                 boxSizing: 'border-box',
                 pageBreakInside: 'avoid',
+                textAlign: 'center',
               }}
             >
               <QRCodeCanvas
                 value={`${APP_URL}/key/${printKey.id}`}
-                size={200}
-                style={{ width: '15mm', height: '15mm', flexShrink: 0 }}
+                size={220}
+                style={{ width: '16mm', height: '16mm' }}
               />
-              <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                <div style={{ fontWeight: 800, fontSize: '8.5pt', lineHeight: 1.05 }}>
-                  {printKey.code}
-                </div>
-                <div
-                  style={{
-                    fontSize: '5pt',
-                    color: '#475569',
-                    lineHeight: 1.1,
-                    display: '-webkit-box',
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical',
-                    overflow: 'hidden',
-                  }}
-                >
-                  {printKey.label}
-                </div>
+              <div style={{ fontWeight: 800, fontSize: '8pt', lineHeight: 1.05 }}>
+                {printKey.code}
+              </div>
+              <div
+                style={{
+                  fontSize: '5pt',
+                  color: '#475569',
+                  lineHeight: 1.1,
+                  display: '-webkit-box',
+                  WebkitLineClamp: 3,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {printKey.label}
               </div>
             </div>
 
@@ -4724,46 +4724,46 @@ const App: React.FC = () => {
                 <div
                   key={key.id}
                   style={{
-                    width: '40mm',
-                    height: '18mm',
+                    width: '19mm',
+                    height: '39mm',
                     border: '1px dashed #94a3b8',
                     borderRadius: '1.5mm',
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '1.5mm',
+                    gap: '1mm',
                     padding: '1.5mm',
                     boxSizing: 'border-box',
                     pageBreakInside: 'avoid',
+                    textAlign: 'center',
                   }}
                 >
                   <QRCodeCanvas
                     value={`${APP_URL}/key/${key.id}`}
-                    size={200}
-                    style={{ width: '15mm', height: '15mm', flexShrink: 0 }}
+                    size={220}
+                    style={{ width: '16mm', height: '16mm' }}
                   />
-                  <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        fontWeight: 800,
-                        fontSize: '8.5pt',
-                        lineHeight: 1.05,
-                      }}
-                    >
-                      {key.code}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '5pt',
-                        color: '#475569',
-                        lineHeight: 1.1,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {key.label}
-                    </div>
+                  <div
+                    style={{
+                      fontWeight: 800,
+                      fontSize: '8pt',
+                      lineHeight: 1.05,
+                    }}
+                  >
+                    {key.code}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '5pt',
+                      color: '#475569',
+                      lineHeight: 1.1,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 3,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {key.label}
                   </div>
                 </div>
               ))}
