@@ -27,6 +27,8 @@ export default defineConfig(() => {
           theme_color: '#BA7517',
           background_color: '#ffffff',
           display: 'standalone',
+          start_url: '/operador',
+          scope: '/',
           icons: [
             {
               src: '/acessa-icon.png',
